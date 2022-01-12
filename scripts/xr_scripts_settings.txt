@@ -1,0 +1,51 @@
+[paths]
+InitialStaticExportPath =C:\Program Files\X-Ray CoP SDK\editors\import
+InitialSkinExportPath =C:\Program Files\X-Ray CoP SDK\editors\import
+editorpath = C:\Program Files\X-Ray CoP SDK\editors
+last_textures_path =C:\Program Files\X-Ray CoP SDK\editors\gamedata\textures
+last_objects_path=C:\Program Files\X-Ray CoP SDK\editors\rawdata\objects
+
+[level]
+last = mylev
+
+
+[xr_object_clsid]
+group = 0
+glow = 1
+static_object = 2
+light = 3
+shapes = 4
+sound_src = 5
+spawn = 6
+way_point = 7
+sector = 8
+sound_env = 10
+static_particle = 11
+fog_volume = 15
+
+[materials]
+default=default
+default_vertex=default_vertex
+metall_default=metall_default
+default_model=default_model
+breakable_glass=breakable_glass
+[mtl_preset_default]
+cshader=default
+eshader=default
+game_mtl=default
+[mtl_preset_default_vertex]
+cshader=def_shaders\def_vertex
+eshader=def_shaders\def_vertex
+game_mtl=default
+[mtl_preset_metall_default]
+cshader=default
+eshader=default
+game_mtl=materials\metal
+[mtl_preset_default_model]
+cshader=default
+eshader=models\model
+game_mtl=default_object
+[mtl_preset_breakable_glass]
+cshader=def_shaders\def_vertex
+eshader=models\window
+game_mtl=objects\glass
