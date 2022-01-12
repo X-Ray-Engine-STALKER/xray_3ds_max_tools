@@ -1,9 +1,12 @@
-rollout XRay_ImportModel_rol "x-ray *.object import v.05"
+rollout XRay_ImportModel_rol "x-ray *.object import v.10"
 (
 button LoadModelBtn "Import model" across:3 width:80 height:24 align:#left
 checkbox LoadBatchChk "batch import" offset:[20,4]
 checkbutton LoadSkinChk "skin" checked:false width:40 tooltip:"load skin" align:#right
 
+label lbl_0 "scale object" align:#left across:2
+spinner ScaleObject range:[0,100000,1] scale:.001 width:60 align:#right
+	
 --checkbox UseStalkerMatChk "use stalker materials" checked:true align:#left across:2
 --radiobuttons xrMtlType "use material" labels:#("standard","stalker mtl","scripted") columns:3 default:2 --align:#left
 label UseMatText "Use material" align:#left offset:[0,4] across:2
@@ -12,6 +15,7 @@ dropdownlist xrMtlType items:#("standard material","stalker material","standard 
 checkbox AttachChk "create single mesh" align:#left
 checkbox LoadShapeChk "load bone collision" align:#left
 checkbox MergeMaterials "use scene material" align:#left
+checkbox PutToLayers "create layers" align:#left
 
 label Lbl "textures path" align:#left
 edittext TPathTxt width:200 align:#left across:2
@@ -139,7 +143,7 @@ fn xray_check_scene_materials fname EngineMaterial CompileMaterial GameMaterial 
 )
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
-fn Load_single_bone f filesize =
+fn Load_single_bone f filesize LayerName =
 (
 		local Section = cop_section ()
 		local i = 0, SectionEndOfs
@@ -154,11 +158,22 @@ fn Load_single_bone f filesize =
 		--format "\t\t bone:% => %\n" CurBoneName ParentBoneName
 		
 		Section.read f ; if Section.ID != 3 then return undefined --( format "\n### section 0x1 not found (transform)\n" ; return undefined )
-		local BindPos = ReadPoint f
+		local BindPos = (ReadPoint f)*ScaleObject.value
 		local BindRot = ReadPoint f
 		local unkfloat = readfloat f --; format "\t\t +float = %\n" unkfloat
 		local joint_type, SprFactor, DumpFactor, SpringFactor, DumpingFactor, AxisMin, AxisMax, Friction, tm
 		local Breakable, BreakForce, BreakTorque
+		local BoneLayerName = LayerName + "_bones", ShapeLayerName = LayerName + "_shapes"
+		
+		if PutToLayers.checked then
+		(
+			Lif = LayerManager.getLayerFromName BoneLayerName
+			if Lif == undefined then 
+			(
+				Lif = LayerManager.newLayer()
+				Lif.setname BoneLayerName
+			)
+		)
 		
 		while true do
 		(
@@ -168,6 +183,8 @@ fn Load_single_bone f filesize =
 						obj = dummy name:CurBoneName boxsize:([1,1,1] * .0) pos:[0,0,0] showlinks:true wirecolor:(color 255 255 0)
 						obj.rotation.controller.value = eulertoquat (eulerangles -(radtodeg BindRot.y) -(radtodeg BindRot.x) -(radtodeg BindRot.z)) order:4
 						obj.position.controller.value = BindPos
+						if PutToLayers.checked then	Lif.addnode obj
+						obj.setSkinPose()
 						
 						setUserProp obj "Material" BoneMaterial
 						setUserProp obj "Mass" BoneMass
@@ -198,6 +215,11 @@ fn Load_single_bone f filesize =
 						
 						if XRayCollision != undefined and LoadShapeChk.checked and shape_type != 0 and shape_type != undefined then
 						(
+							BoxHalfSize *= ScaleObject.value
+							SphereRadius *= ScaleObject.value
+							CylRadius *= ScaleObject.value
+							CylHeight *= ScaleObject.value
+							
 							b = XRayCollision 	stype:shape_type \
 												width:BoxHalfSize.x length:BoxHalfSize.z height:BoxHalfSize.y \
 												sradius:SphereRadius \
@@ -214,31 +236,31 @@ fn Load_single_bone f filesize =
 							(
 								1:
 								(
-									tm.row4 = [BoxCenter.x, BoxCenter.z, BoxCenter.y]
+									tm.row4 = [BoxCenter.x, BoxCenter.z, BoxCenter.y]*ScaleObject.value
 									b.transform *= tm
 									b.transform *= obj.transform
 								)
 								2:
 								(
-									tm.row4 = [SphereCenter.x, SphereCenter.z, SphereCenter.y]
+									tm.row4 = [SphereCenter.x, SphereCenter.z, SphereCenter.y]*ScaleObject.value
 									b.transform *= tm
 									b.transform *= obj.transform
 								)
 								3:
 								(
 									b.dir = normalize [CylDir.x, CylDir.z, CylDir.y]
-									b.pos = [CylCenter.x, CylCenter.z, CylCenter.y]
+									b.pos = [CylCenter.x, CylCenter.z, CylCenter.y]*ScaleObject.value
 									b.transform *= obj.transform
 								)
 								default: () --format "\t\t\t - no shape\n"
 							)
 							
 							b.parent = obj
-							Lif = LayerManager.getLayerFromName "xray_shapes"
+							Lif = LayerManager.getLayerFromName ShapeLayerName
 							if Lif == undefined then 
 							(
 								Lif = LayerManager.newLayer()
-								Lif.setname "xray_shapes"
+								Lif.setname ShapeLayerName
 							)
 							Lif.addnode b
 						)
@@ -323,7 +345,7 @@ fn Load_single_bone f filesize =
 						0x7: -- Mass
 						(
 								BoneMass = readfloat f
-								BoneCenterMass = ReadPoint f
+								BoneCenterMass = (ReadPoint f)*ScaleObject.value
 								
 								--fseek f SectionEndOfs #seek_set
 						)
@@ -457,7 +479,7 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 													0x1005:
 														(
 																NumVerts = readlong f #unsigned --; format " EMESH_CHUNK_VERTS [%]" NumVerts
-																vmas = for i = 1 to NumVerts collect (ReadPoint f)
+																vmas = for i = 1 to NumVerts collect ((ReadPoint f)*ScaleObject.value)
 														)
 													0x1006:
 														(
@@ -480,15 +502,35 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 																m.name = EMESH_CHUNK_MESHNAME
 																Result[1][MeshIndex+1] = m
 																setuserprop m "user_data" EOBJ_CHUNK_USERDATA
+																if PutToLayers.checked then
+																(
+																	Lif = LayerManager.getLayerFromName ((getfilenamefile fname) + "_mesh")
+																	if Lif == undefined then 
+																	(
+																		Lif = LayerManager.newLayer()
+																		Lif.setname ((getfilenamefile fname) + "_mesh")
+																	)
+																	if PutToLayers.checked then	Lif.addnode m
+																)
 														)
 													0x1013:
 														(
 																--format " EMESH_CHUNK_SG\n"
+																--tst = #{}
+																--mi = 9999999
+																--ma = -9999999
+																
 																for i = 1 to NumFaces do 
 																(
 																	sg = readlong f #unsigned
-																	setFaceSmoothGroup m i sg
+																	--setFaceSmoothGroup m i sg
+																	--mi = amin mi sg
+																	--ma = amax ma sg
+																	sg = abs ( mod sg 32 )
+																	setFaceSmoothGroup m i (2^sg)
 																)
+																
+																--format "%, %\n" mi ma
 														)
 													0x1008:
 														(
@@ -634,7 +676,9 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 														(EngineMaterial == "def_shaders\\def_aref") or
 														(EngineMaterial == "def_shaders\\def_aref_v") or
 														(EngineMaterial == "def_shaders\\def_trans") or
+														(EngineMaterial == "details\\blend") or
 														(EngineMaterial == "def_shaders\\def_trans_v_tuchi") or
+														(EngineMaterial == "models\\model_fur") or
 														(EngineMaterial == "flora\\leaf_wave") then isOpacity = true
 													else isOpacity = false
 													
@@ -715,7 +759,7 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 												if Section.ID > 200 then ( format "+++ list\n" ; exit )
 		
 												i += 1
-												BoneObject = Load_single_bone f (Section.size + (ftell f))
+												BoneObject = Load_single_bone f (Section.size + (ftell f))  (getfilenamefile fname)
 												Append Result[3] BoneObject
 										)
 										
@@ -745,65 +789,84 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 		
 		if LoadSkin AND SkinAvailable then
 				(
-						smod = skin bone_Limit:10 --() --initialStaticEnvelope:true initialEnvelopeInner:0 initialEnvelopeOuter:0
-						obj = result[1][1]
-						
-						max modify mode
-						select obj
-						addmodifier obj smod
+					smod = skin bone_Limit:10 --initialStaticEnvelope:true initialEnvelopeInner:0 initialEnvelopeOuter:0
+					obj = result[1][1]
+					
+					max modify mode
+					select obj
+					addmodifier obj smod
 
-						for ii = 1 to result[3].count do
+					for ii = 1 to result[3].count do
+					(
+						tmp = skinOps.addbone smod result[3][ii][1] 0
+						/*
+						for jj = 1 to 2 do 
 						(
-								skinOps.addbone smod result[3][ii][1] 0
-								for jj = 1 to 2 do 
-								(
-									skinOps.SetInnerRadius smod ii jj 0
-									skinOps.SetOuterRadius smod ii jj 0
-								)
+							skinOps.SetInnerRadius smod ii jj 0
+							skinOps.SetOuterRadius smod ii jj 0
 						)
-
-						SkinData = #(#(),#())
-						
-						for a in XTable do
+						*/
+						--format "%, %, %\n" ii result[3][ii][1] tmp
+					)
+					
+					for ii = 1 to result[3].count do
+					(
+						for jj = 1 to 2 do
 						(
-								isGood = true
-								Bonar = #()
-								War = #()
-								skin_vid = -1
-								skin_tid = -1
-								
-								for pa in a do
-								(
-										if pa[1] == TexTabID1-1 then (skin_tid = TexTabID1 ; skin_vid = pa[2] + 1 ; continue)
-										if pa[1] == TexTabID2-1 then (skin_tid = TexTabID2 ; skin_vid = pa[2] + 1 ; continue)
-										tid = pa[1] + 1
-										iid = pa[2] + 1 
-										
-										if BoneNamesList[tid] != undefined then
-										(
-												w = VTable[tid][iid]
-												bid = 1
-												for k = 1 to result[3].count do if (stricmp BoneNamesList[tid] result[3][k][1].name) == 0 then (bid = k ; exit)
-												append Bonar Bid
-												append War w
-										)
-								)
-								
-								if isGood then 
-								(
-										skin_index = ITable[skin_tid][skin_vid] + 1
-										if SkinData[1][skin_index] == undefined then
-										(
-											SkinData[1][skin_index] = Bonar
-											SkinData[2][skin_index] = War
-										)
-								)
+							skinOps.SetInnerRadius smod ii jj 0
+							skinOps.SetOuterRadius smod ii jj 0
+						)
+					)
+					
+					
+					SkinData = #(#(),#())
+					
+					for a in XTable do
+					(
+						isGood = true
+						Bonar = #()
+						War = #()
+						skin_vid = -1
+						skin_tid = -1
+						
+						for pa in a do
+						(
+							if pa[1] == TexTabID1-1 then (skin_tid = TexTabID1 ; skin_vid = pa[2] + 1 ; continue)
+							if pa[1] == TexTabID2-1 then (skin_tid = TexTabID2 ; skin_vid = pa[2] + 1 ; continue)
+							tid = pa[1] + 1
+							iid = pa[2] + 1 
+							
+							if BoneNamesList[tid] != undefined then
+							(
+								w = VTable[tid][iid]
+								bid = 1
+								--for k = 1 to result[3].count do if (stricmp BoneNamesList[tid] result[3][k][1].name) == 0 then (bid = k ; exit)
+								for k = 1 to result[3].count do if (stricmp BoneNamesList[tid] (skinOps.GetBoneName smod k 1)) == 0 then (bid = k ; exit)
+								append Bonar Bid
+								append War w
+							)
 						)
 						
-						for i = 1 to $.numverts do
-								skinOps.setVertexWeights smod i SkinData[1][i] SkinData[2][i]
-						
-						--gc()
+						if isGood then 
+						(
+							skin_index = ITable[skin_tid][skin_vid] + 1
+							if SkinData[1][skin_index] == undefined then
+							(
+								SkinData[1][skin_index] = Bonar
+								SkinData[2][skin_index] = War
+							)
+						)
+					)
+					
+					for i = 1 to $.numverts do
+					(
+						--skinOps.SelectVertices smod i
+						--skinOps.bakeSelectedVerts smod
+						skinOps.setVertexWeights smod i SkinData[1][i] SkinData[2][i]
+						--format "%, %, %\n" i SkinData[1][i] SkinData[2][i]
+					)
+					
+					--gc()
 				)
 		
 		--gc()
@@ -842,7 +905,7 @@ on XRay_ImportModel_rol open do
 		fname = scriptspath + "xr_scripts_settings.txt"
 		TPathTxt.text = getIniSetting fname "paths" "last_textures_path"
 		ObjPathTxt.text = getIniSetting fname "paths" "last_objects_path"
-		LoadShapeChk.enabled = false --( XRayCollision != undefined)
+		LoadShapeChk.enabled = ( XRayCollision != undefined)
 )
 
 
@@ -1128,7 +1191,7 @@ on LoadModelBtn pressed do
 ) -- roll
 
 try (closeRolloutFloater XRay_ImportModel_flo) catch ()
-XRay_ImportModel_flo = newRolloutFloater "x-ray tools" 270 250 40 130
+XRay_ImportModel_flo = newRolloutFloater "x-ray tools" 270 290 40 130
 addRollout  XRay_ImportModel_rol XRay_ImportModel_flo
 --addRollout  XRay_Skeleton_rol XRay_Skeleton_flo
 

@@ -1,9 +1,9 @@
 -------------------------------------------------------------------------------------------------------------------------------------------
--- X-Ray SDK object export ver. 02
+-- X-Ray SDK object export ver. 10
 -- by Den-Stash
 -------------------------------------------------------------------------------------------------------------------------------------------
 
-rollout xray_export_statics_rol "x-ray *.object export ver.02"
+rollout xray_export_statics_rol "x-ray *.object export ver.10"
 (
 
 group "static"
@@ -35,6 +35,16 @@ label lbl_0 "scale object" align:#left across:2
 spinner scale_value range:[0,100000,1] scale:.001 width:60 align:#right
 )
 
+group "collision shapes"
+(
+	checkbox useShapes "export collision shapes" checked:true
+	label lbl_sh1 "create object"
+	button shapeCreateSphere "sphere" across:3 width:50 align:#left
+	button shapeCreateCyl "cylinder" width:50 align:#center
+	button shapeCreateBox "box" width:50 align:#right
+	label lbl_sh2 "size" align:#left across:2
+	spinner shapeSize range:[0,100000,.5] scale:.01 width:60 align:#right
+)
 
 local MaterialList, ShapeList
 
@@ -46,6 +56,23 @@ fn writePoint f p =
 	writefloat f p.y
 )
 
+fn writePointS f p s =
+(
+	writefloat f (p.x*s)
+	writefloat f (p.z*s)
+	writefloat f (p.y*s)
+)
+
+fn GetSG v =
+(
+	local n = 0, k = v
+	while k >= 1 do (
+		k/=2
+		n += 1
+	)
+	
+	n
+)
 -------------------------------------------------------------------------------------------------------------------------------------------
 fn write_single_mesh f sobj ExportSkinMode ExportRigidMode =
 (
@@ -173,7 +200,7 @@ fn write_single_mesh f sobj ExportSkinMode ExportRigidMode =
 	
 	writelong f 0x1013												-- EMESH_CHUNK_SG
 	writelong f (NumFaces*4)
-	for i = 1 to NumFaces do writelong f (getFaceSmoothGroup obj i)
+	for i = 1 to NumFaces do writelong f (getsg (getFaceSmoothGroup obj i))
 	
 																	-- EMESH_CHUNK_VMREFS
 	writelong f 0x1008
@@ -550,10 +577,34 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 			)
 			else
 			(
-				bname = xrToolsUtil.renameBone (skinOps.GetBoneName SkinMod i 0)
-				bob = execute ("$'" + bname + "'")
-				pname = if bob.parent == undefined then "scene_root" else bob.parent.name
-				paro = bob.parent
+				SceneBoneName = skinOps.GetBoneName SkinMod i 0
+				bname = xrToolsUtil.renameBone (SceneBoneName)
+				bob = execute ("$'" + SceneBoneName + "'")
+				--pname = if bob.parent == undefined then "scene_root" else xrToolsUtil.renameBone(bob.parent.name)
+				--paro = bob.parent
+				
+				if bob.parent == undefined then
+				(
+					pname = "scene_root"
+					paro = undefined
+				)
+				else
+				(
+					ParentInList = false
+					for j = 1 to NumBones do 
+						if (skinOps.GetBoneName SkinMod j 0) ==  bob.parent.name then (ParentInList = true; exit)
+					if ParentInList then
+					(
+						pname = xrToolsUtil.renameBone(bob.parent.name)
+						paro = bob.parent
+					)
+					else
+					(
+						pname = "scene_root"
+						paro = undefined
+					)
+				)
+				--format "SceneBoneName % , bname % , bob % , pname %, paro %\n"  SceneBoneName bname bob pname paro
 			)
 			
 			writelong f 2
@@ -565,7 +616,7 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 			writelong f 3
 			writelong f 28
 			ttm = if paro == undefined then (orthogonalize bob.transform) else (orthogonalize bob.transform)*(inverse (orthogonalize paro.transform))
-			writepoint f (ttm.position*scale_value.value)
+			writepointS f ttm.position scale_value.value
 			rot = quattoeuler ttm.rotation order:4
 			rx = degtorad(rot.x)
 			ry = degtorad(rot.y)
@@ -578,26 +629,96 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 			writelong f 2
 			writelong f (bname.count + 1)
 			writestring f bname
-			
+				
 			writelong f 4
-			writelong f 15
-			writestring f "default_object"
+			sob = execute("$'shape_" + SceneBoneName + "'")
+			if useShapes.checked == false then sob = undefined
+			--BoneMat = getuserprop bob "Material" ; if BoneMat == undefined then BoneMat = "default_object"
+			BoneMat = "default_object"
+			if sob != undefined then
+			(
+				if classof sob.material == standard then
+					if (xrToolsUtil.HasShadersCA sob.material) then
+						BoneMat = sob.material.GameMaterial
+				format "\tfound shape % (material: %)\n" SceneBoneName BoneMat
+			)
+			writelong f (BoneMat.count+1)
+			writestring f BoneMat --"default_object"
 			
-			writelong f 5
-			writelong f 112
-			writeshort f 0 --shape_type
-			writeshort f 0 -- shape_flags
-			writepoint f [1,0,0] -- tm.row1
-			writepoint f [0,0,1] -- tm.row2
-			writepoint f [0,1,0] -- tm.row3
-			writepoint f [0,0,0] -- BoxCenter
-			writepoint f [0,0,0] -- BoxHalfSize
-			writepoint f [0,0,0] -- SphereCenter
-			writefloat f 0 -- SphereRadius
-			writepoint f [0,0,0]  -- CylCenter 
-			writepoint f [0,0,0]  --CylDir
-			writefloat f 0 --CylHeight 
-			writefloat f 0 --CylRadius
+			if sob == undefined then
+			(
+				
+				writelong f 5
+				writelong f 112
+				writeshort f 0 --shape_type
+				writeshort f 0 -- shape_flags
+				writepoint f [1,0,0] -- tm.row1
+				writepoint f [0,0,1] -- tm.row2
+				writepoint f [0,1,0] -- tm.row3
+				writepoint f [0,0,0] -- BoxCenter
+				writepoint f [0,0,0] -- BoxHalfSize
+				writepoint f [0,0,0] -- SphereCenter
+				writefloat f 0 -- SphereRadius
+				writepoint f [0,0,0]  -- CylCenter 
+				writepoint f [0,0,0]  --CylDir
+				writefloat f 0 --CylHeight 
+				writefloat f 0 --CylRadius
+			)
+			else
+			(
+				if classof sob == XRayCollision then shape_type = sob.sType
+				else	if classof sob == Sphere then shape_type = 2
+					else if classof sob == Cylinder then shape_type = 3
+						else shape_type = 1
+				
+				writelong f 5
+				writelong f 112
+				writeshort f shape_type ; 0 --shape_type
+				writeshort f 0 -- shape_flags
+				
+				tm = (orthogonalize sob.transform)*(inverse (orthogonalize bob.transform))
+				writePoint  f tm.row1
+				writePoint  f tm.row3
+				writePoint  f tm.row2
+				
+				writepointS f (sob.center*(inverse (orthogonalize bob.transform))) scale_value.value -- BoxCenter
+				if classof sob == XRayCollision then 
+				(
+					writefloat f (sob.width*scale_value.value)
+					writefloat f (sob.height*scale_value.value)
+					writefloat f (sob.length*scale_value.value)
+				)
+				else
+				(
+					tms = sob.transform
+					sob.rotation = quat 0 0 0 1
+					writePointS  f ((sob.max - sob.min)/2.) scale_value.value
+					sob.transform = tms
+				)
+					
+				writepointS f tm.row4 scale_value.value -- SphereCenter
+				curScl = amax sob.scale.x sob.scale.y sob.scale.z
+				if classof sob == XRayCollision then writefloat f (sob.sradius*scale_value.value*curScl)
+				else if shape_type == 2 then writefloat f (sob.radius*scale_value.value*curScl)
+					else writefloat f ((sob.max.z - sob.min.z)*scale_value.value*curScl)
+				
+				if classof sob == XRayCollision then writePointS f tm.row4 scale_value.value
+				else if shape_type == 3 then writePointS f  (([0,0,sob.height/2]*sob.transform)*(inverse (orthogonalize bob.transform))) scale_value.value
+					else writePointS f tm.row4 scale_value.value
+				
+				--writePointS  f (in coordsys bob sob.dir) scale_value.value
+				writePoint  f (in coordsys bob sob.dir)
+				if classof sob == XRayCollision then
+				(
+					writefloat f (sob.cheight*scale_value.value*curScl)
+					writefloat f (sob.cradius*scale_value.value*curScl)
+				)
+				else 
+				(
+					if shape_type == 3 then writefloat f (sob.height*scale_value.value*curScl) else writefloat f ((sob.max.z - sob.min.z)*scale_value.value*curScl)
+					if shape_type == 3 then writefloat f (sob.radius*scale_value.value*curScl) else writefloat f ((sob.max.z - sob.min.z)*scale_value.value*curScl)
+				)
+			)
 			
 			writelong f 8
 			writelong f 4
@@ -623,12 +744,13 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 			
 			writelong f 16	-- unk float
 			writelong f 4
-			writefloat f 9.9
+			writefloat f 0.
 			
 			writelong f 7	-- mass
 			writelong f 16
 			writefloat f 10
-			writepoint f [0,0,0] -- center mass
+			if sob == undefined then writepoint f [0,0,0] -- center mass
+			else writePointS f  (sob.center*(inverse (orthogonalize bob.transform))) scale_value.value
 			
 			curOfs = ftell f
 			fseek f ChangeOffset_temp #seek_set
@@ -657,6 +779,40 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 	curOfs = ftell f
 	fseek f 4 #seek_set
 	writelong f (curOfs - 8)
+)
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+on shapeCreateSphere pressed do
+(
+	bob = selection[1]
+	newname = if bob == undefined then "shape_" else "shape_" + bob.name
+	tm = if bob == undefined then matrix3 1 else orthogonalize bob.transform
+	s = sphere radius:(shapeSize.value/2) name:newname xray:true
+	s.transform = tm
+	select s
+)
+
+on shapeCreateCyl pressed do
+(
+	bob = selection[1]
+	newname = if bob == undefined then "shape_" else "shape_" + bob.name
+	tm = if bob == undefined then matrix3 1 else orthogonalize bob.transform
+	s = cylinder radius:(shapeSize.value/2) height:shapeSize.value name:newname xray:true
+	s.transform = tm
+	select s
+)
+
+on shapeCreateBox pressed do
+(
+	bob = selection[1]
+	newname = if bob == undefined then "shape_" else "shape_" + bob.name
+	tm = if bob == undefined then matrix3 1 else orthogonalize bob.transform
+	s = box length:(shapeSize.value/2) height:(shapeSize.value/2) width:(shapeSize.value/2) name:newname xray:true
+	s.pivot = s.center
+	resetXForm s
+	collapsestack s
+	s.transform = tm
+	select s
 )
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -796,5 +952,5 @@ on export_stat_btn pressed do
 ) -- roll
 
 try (closeRolloutFloater xray_export_statics_flo) catch ()
-xray_export_statics_flo = newRolloutFloater "x-ray tools" 200 230 120 130
+xray_export_statics_flo = newRolloutFloater "x-ray tools" 200 350 120 130
 addRollout  xray_export_statics_rol xray_export_statics_flo

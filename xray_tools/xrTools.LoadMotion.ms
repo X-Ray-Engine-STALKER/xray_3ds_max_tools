@@ -1,16 +1,24 @@
-rollout XRay_Skeleton_rol "x-ray load *.skls v.02"
+rollout XRay_Skeleton_rol "x-ray load *.skls v.10"
 (
-button CreateList "Get animation file"
+button CreateList "Get animation file" width:230
 label FLabel "" align:#left
 label ALabel "animations:" align:#left
 listbox AnimList items:#() height:16
-button LoadAnim "Load animation"
+button LoadAnim "LOAD MOTION" height:30 width:230
+label lbl_0 "scale factor" align:#left across:2
+spinner ScaleFactor range:[0,100000,1]  width:60 align:#right
+label lbl_1 "time stretch" align:#left across:2
+spinner ScaleTimeFactor range:[0,100000,1]  width:60 align:#right
+checkbox SetARange "set animation range" across:2 align:#left
+checkbox FromZero "leave start" align:#right checked:true
 button ResetPoseBtn "Reset pose"
+--checkbox LoadUntilChk "load until frame" across:2 align:#left
+--spinner MaxLoadTime type:#integer range:[0,999999,100] align:#right
 
-checkbox SetARange "set animation range"
 
 struct s_anim_name ( name, index )
-local AnimFileName = undefined, Animas = #()
+local AnimFileName = undefined, Animas = #(), LastAnimPath = "C:\\Program Files\\X-Ray CoP SDK\\editors\\"
+local flagNames = #("type fx","stop at end","no mix","sync part","use foot step","move xform","idle","use weapon bone")
 
 fn FNSortAnim v1 v2 =
 (
@@ -26,11 +34,16 @@ fn FNSortAnim v1 v2 =
 --------------------------------------------------------------------------------------------------------------------------------------------------
 fn PassAnimation f =
 (
+		local i, j, u, count, BoneName, flagStr = ""
 		local a1 = readlong f
 		local a2 = readlong f
-		fseek f 25 #seek_cur
-		local i, j, u, count, BoneName
-		local NumBones = readshort f
+		--fseek f 25 #seek_cur
+		local FRate = readfloat f, UnkShort1 = readshort f , flagi = readbyte f , UnkShort2 = readshort f
+		
+		if flagi > 0 then 
+			for i = 0 to 7 do if (bit.and flagi (2^i)) > 0 then flagStr += flagNames[i+1] + "|"
+		
+		local ASpeed = readfloat f , AAccure = readfloat f, AFallof = readfloat f, UnkFloat1 = readfloat f, NumBones = readshort f
 		
 		--format "% % % [%]\n" a1 a2 NumBones (ftell f)
 		
@@ -51,13 +64,14 @@ fn PassAnimation f =
 		
 		--readlong f
 		
-		return #(a1,a2)
+		return #(a1,a2,ASpeed,AAccure,AFallof,flagStr)
 )
 
 --------------------------------------------------------------------------------------------------------------------------------------------------
 fn load_single_skl f start_t =
 (
 		local AName
+		
 		while true do
 		(
 			AName = readstring f
@@ -68,12 +82,21 @@ fn load_single_skl f start_t =
 		format "animation: %\n" AName
 		local FStart = readlong f , FEnd = readlong f ; format "frames from % to %\n" FStart FEnd 
 		local FRate = readfloat f ; format "frame rate : %\n" FRate 
-		local UnkShort1 = readshort f , UnkByte1 = readbyte f , UnkShort2 = readshort f ; format "unk : %, %, %\n" UnkShort1 UnkByte1 UnkShort2 
+		local UnkShort1 = readshort f , flagi = readbyte f , UnkShort2 = readshort f --; format "unk : %, %, %\n" UnkShort1 UnkByte1 UnkShort2
+		
+		if flagi > 0 then 
+		(
+			format "flags: "
+			for i = 0 to 7 do if (bit.and flagi (2^i)) > 0 then format "% | " flagNames[i+1]
+			format "\n"
+		)
+		
 		local ASpeed = readfloat f , AAccure = readfloat f, AFallof = readfloat f ; format "speed,acure,fallof | %, %, %\n" ASpeed AAccure AFallof 
 		local UnkFloat1 = readfloat f ; format "UnkFloat1 = %\n" UnkFloat1
 		local NumBones = readshort f ; format "num animated bones = %\n" NumBones
 		local ctime, ctr
 		local ControllerName = #("position.1","position.2","position.3","rotation.1","rotation.2","rotation.3")
+		local MinTime, MaxTime
 		
 		for i = 1 to NumBones do
 		(
@@ -82,13 +105,12 @@ fn load_single_skl f start_t =
 				
 				--bo = execute ("$" + BoneName)
 				bo = undefined
-				format "bone: %\n" BoneName
 				
 				for xo in selection do 
 					if (stricmp BoneName xo.name) == 0 then (bo = xo ; exit)
 					
-				if bo == undefined then ( format "### warning: BONE OBJECT NOT FOUNDED\n")
-				--else format "found bone %\n" bo
+				--if bo == undefined then ( format "### warning: BONE OBJECT NOT FOUNDED [%]\n" BoneName)
+				--else format "bone: %\n" BoneName
 
 				ctr = for j = 1 to 6 collect linear_float ()
 				ctime = linear_float ()
@@ -99,13 +121,12 @@ fn load_single_skl f start_t =
 						u = #(readbyte f, readbyte f)
 						count = readshort f
 						--format "\t Controller % : %, %\n" j u count
-						
-						if count > 0 then format "\t% [%]\n" ControllerName[j] count
+						--if count > 0 then format "\t% [%]\n" ControllerName[j] count
 						
 						for k = 1 to count do
 						(
 								v = readfloat f
-								t = (readfloat f)*FRate + start_t
+								t = (readfloat f)*FRate*ScaleTimeFactor.value + start_t
 								b = readbyte f
 								animate on at time t ctr[j].value = v
 								addNewKey ctime t
@@ -117,12 +138,17 @@ fn load_single_skl f start_t =
 				
 				if bo != undefined then
 				(
+						setBeforeORT bo.rotation.controller #constant
+						setAfterORT bo.rotation.controller #constant
+						setBeforeORT bo.position.controller #constant
+						setAfterORT bo.position.controller #constant
+					
 						for k in ctime.keys do
 						(
 								t = k.time
-								px = at time t ctr[1].value
-								pz = at time t ctr[2].value
-								py = at time t ctr[3].value
+								px = at time t (ScaleFactor.value * ctr[1].value)
+								pz = at time t (ScaleFactor.value * ctr[2].value)
+								py = at time t  (ScaleFactor.value * ctr[3].value)
 								rx = radtodeg (at time t ctr[4].value)
 								rz = radtodeg (at time t ctr[5].value)
 								ry = radtodeg (at time t ctr[6].value)
@@ -144,12 +170,29 @@ fn load_single_skl f start_t =
 						deletekeys bo.scale.controller.keys #allkeys
 				)
 				
-				--if i > 6 then exit
+				if ctime.keys.count > 0 then
+				(
+					if MinTime == undefined then (MinTime = ctime.keys[1].time; MaxTime = ctime.keys[ctime.keys.count].time)
+					else
+					(
+						if ctime.keys[ctime.keys.count].time > MaxTime then MaxTime = ctime.keys[ctime.keys.count].time
+						if ctime.keys[1].time < MinTime then MinTime = ctime.keys[1].time
+					)
+				)
 		) -- i
 		
-		--if (FEnd-1) > FStart then animationRange = interval (FStart+start_t) (FEnd-1+start_t) else animationRange = interval (FStart+start_t) (FStart+1+start_t)
-		if SetARange.checked then
-			if (FEnd-1) > 0 then animationRange = interval 0 (FEnd-1+start_t) else animationRange = interval 0 (FStart+1+start_t)
+		if FromZero.checked then MinTime = animationrange.start
+			
+		if MinTime!=undefined and SetARange.checked then
+			if MinTime == MaxTime then animationRange = interval MaxTime (MaxTime+1)
+			else animationRange = interval MinTime MaxTime
+		
+		---format "qweqwe %\n" ctime.keys.count
+		
+		if MaxTime!=undefined then slidertime = MaxTime
+
+		--if SetARange.checked then
+			--if (FEnd-1) > 0 then animationRange = interval 0 (FEnd-1+start_t) else animationRange = interval 0 (FStart+1+start_t)
 )
 
 --------------------------------------------------------------------------------------------------------
@@ -176,10 +219,10 @@ on ResetPoseBtn pressed do
 --------------------------------------------------------------------------------------------------------
 on CreateList pressed do
 (
-		fname = getopenfilename types:"anims|*.skls|anim|*.skl|" \
-				filename:"C:\\Program Files\\X-Ray CoP SDK\\editors\\"
+		fname = getopenfilename types:"anims|*.skls|anim|*.skl|" filename:LastAnimPath
 		
 		clearlistener ()
+		str = ""
 		
 		if fname != undefined then
 		(
@@ -187,9 +230,13 @@ on CreateList pressed do
 				if f == undefined then format "cant open file\n"
 				else
 				(
+						LastAnimPath = getfilenamepath fname
 						AnimList.items = #()
 						AnimFileName = fname
-						NumAnims = readlong f ; format "Num anims = %\n" NumAnims
+						NumAnims = readlong f
+						if NumAnims == 4608 then (NumAnims = 1 ; readlong f)
+					
+						format "Num anims = %\n\n" NumAnims
 						TempList = #()
 						Animas = #()
 						
@@ -204,7 +251,8 @@ on CreateList pressed do
 								j = s_anim_name name:(str) index:i
 								append Animas j
 								b = PassAnimation f
-								format "%:% %\n" i str b
+								format "%,\t frames %, speed %, accure %, fallof %" str b[2] b[3]  b[4]  b[5]
+								if b[6] == "" then format "\n" else format ", flags |%\n" b[6]
 						)
 						
 						--print Animas
@@ -231,7 +279,8 @@ on LoadAnim pressed do
 				if f == undefined then format "cant open file\n"
 				else
 				(
-						NumAnims = readlong f ; format "Num anims = %\n" NumAnims
+						NumAnims = readlong f
+						if NumAnims == 4608 then (NumAnims = 1 ; readlong f) --single
 						--N = AnimList.selection
 						N = Animas[AnimList.selection].index
 						
@@ -256,7 +305,7 @@ on LoadAnim pressed do
 
 
 try (closeRolloutFloater XRay_Skeleton_flo) catch ()
-XRay_Skeleton_flo = newRolloutFloater "x-ray tools" 270 400 40 130
+XRay_Skeleton_flo = newRolloutFloater "x-ray tools" 270 450 40 130
 addRollout  XRay_Skeleton_rol XRay_Skeleton_flo
 
 

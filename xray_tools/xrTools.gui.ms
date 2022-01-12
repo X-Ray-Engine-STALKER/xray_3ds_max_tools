@@ -12,7 +12,7 @@ utility xrayUtilites "x-ray tools"
 	button ExpObjBtn "Export object" width:120
 	button LoadSklsBtn "Load motion" width:120
 	button ExportMotionBtn "Export motion" width:120
-	
+	button AnmIOBtn "*.anm i/o" width:120
 	
 	on ImpObjBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.ObjectImport.ms") quiet:true) 
 		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.ObjectImport.ms"))
@@ -22,7 +22,9 @@ utility xrayUtilites "x-ray tools"
 		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.LoadMotion.ms"))
 	on ExportMotionBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.ExportMotion.ms") quiet:true) 
 		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.ExportMotion.ms"))
-	
+	on AnmIOBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.anm_io.ms") quiet:true) 
+		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.anm_io.ms"))
+			
 	
 	group "material helper"
 	(
@@ -65,20 +67,37 @@ utility xrayUtilites "x-ray tools"
 	
 	group "utils"
 	(
-		button ShowLinksBtn "show links" width:120 align:#center
+		--button ShowLinksBtn "show links" width:120 align:#center
 		button BoneScalerBtn "scaler tool" width:120 align:#center tooltip:"scale collision files (*.bones), scale animation position keys (*.skl/*skls)"
 		button SimpleFenceBtn "simple fence" width:120 align:#center
+		button EditOmfBtn "OMF editor" width:120 align:#center
+		button RagDollBtn "ragdoll helper" width:120 align:#center
+		--button AttachWeaponBtn "attach weapon" width:120 align:#center
+		button RunningMobBtn "running mob :)" width:120 align:#center
 	)
 	
-	on ShowLinksBtn pressed do
-		for obj in selection do obj.showlinks = true
+	--on ShowLinksBtn pressed do
+		--for obj in selection do obj.showlinks = true
 		
 	on BoneScalerBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.BoneScaler.ms") quiet:true) 
 		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.BoneScaler.ms"))
 
 	on SimpleFenceBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.SimpleFence.ms") quiet:true) 
 		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.SimpleFence.ms"))
-		
+			
+	on EditOmfBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrayTools.EditOmf.ms") quiet:true) 
+		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrayTools.EditOmf.ms"))
+			
+	on RagDollBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrayTools.RagDollValuesHelper.ms") quiet:true) 
+		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrayTools.RagDollValuesHelper.ms"))
+			
+	--on AttachWeaponBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.attach_weapon.ms") quiet:true) 
+		--catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.attach_weapon.ms"))
+			
+	on RunningMobBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.running_mob.ms") quiet:true) 
+		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.running_mob.ms"))
+	
+	
 	--label txt_00 "-------------------------------" offset:[0,12]
 	--label txt_01 "by Den-Stash"
 	--label txt_02 "-------------------------------"
