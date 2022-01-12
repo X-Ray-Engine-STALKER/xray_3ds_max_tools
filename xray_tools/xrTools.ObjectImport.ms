@@ -1,4 +1,4 @@
-rollout XRay_ImportModel_rol "x-ray *.object import v.10"
+rollout XRay_ImportModel_rol "x-ray *.object import v.20"
 (
 button LoadModelBtn "Import model" across:3 width:80 height:24 align:#left
 checkbox LoadBatchChk "batch import" offset:[20,4]
@@ -8,7 +8,9 @@ label lbl_0 "scale object" align:#left across:2
 spinner ScaleObject range:[0,100000,1] scale:.001 width:60 align:#right
 
 label UseMatText "Use material" align:#left offset:[0,4] across:2
-dropdownlist xrMtlType items:#("standard material","stalker material","standard + shaders")  selection:3 width:140 align:#right
+dropdownlist xrMtlType items:#("standard material","stalker material","standard + shaders")  selection:3 width:150 align:#right
+label UseMatText2 "Smoothing" align:#left offset:[0,4] across:2
+dropdownlist SGImportType items:#("Type #1", "Type #2") selection:1 width:150 align:#right
 
 checkbox AttachChk "create single mesh" align:#left
 checkbox LoadShapeChk "load bone collision" align:#left
@@ -24,8 +26,18 @@ label Lblb "objects path" align:#left
 edittext ObjPathTxt width:200 align:#left across:2 --enabled:false
 button GetObjPathBtn "get" align:#right width:24
 
+/*
+group "smoothing groups"
+(
+	checkbox LoadOrigSG "save original SG to file"
+	edittext SGFilename width:200 align:#left across:2 readOnly:true
+	button GetSGFilenameBtn "get" align:#right width:24
+)
+*/
 ------------------------------------------------------------------------------------------------------------
 local LastPath = "C:\\Program Files\\X-Ray CoP SDK\\editors\\"
+
+local SGa = #(), SGUsed = #{}
 
 ------------------------------------------------------------------------------------------------------------
 struct cop_section 
@@ -83,6 +95,19 @@ fn FinalSettings a fname =
 		)
 	return undefined
 )
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+on GetSGFilenameBtn pressed do
+(
+	str = getsavefilename types:"smoothing groups|*.xsg|"
+	if str!=undefined then
+	(
+		SGFilename.text = str
+	)
+)
+
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
 fn xray_check_scene_materials fname EngineMaterial CompileMaterial GameMaterial MaterialDoubleSide =
@@ -377,6 +402,14 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 		local EOBJ_CHUNK_FLAGS, EOBJ_CHUNK_VERSION, EOBJ_CHUNK_USERDATA, EOBJ_CHUNK_LOD_REF
 		local SkinAvailable = false
 		local VTable, ITable, BoneNamesList, XTable = #()
+	
+		fn compareSG a b = 
+		(
+			local an = a.numberset, bn = b.numberset
+			if an == bn then return 0
+			if an > bn then return 1
+			return -1
+		)
 		
 		while true do
 		(
@@ -403,16 +436,19 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 						)
 					0x0912:
 						(
-								EOBJ_CHUNK_USERDATA = readstring f --format " EOBJ_CHUNK_USERDATA = %\n" EOBJ_CHUNK_USERDATA
+								EOBJ_CHUNK_USERDATA = readstring f
+								--format "EOBJ_CHUNK_USERDATA = %\n" EOBJ_CHUNK_USERDATA
 						)
 					0x0925:
 						(
-								EOBJ_CHUNK_LOD_REF = readstring f --format " EOBJ_CHUNK_LOD_REF = %\n" (trimright EOBJ_CHUNK_LOD_REF)
+								EOBJ_CHUNK_LOD_REF = readstring f
+								--format "EOBJ_CHUNK_LOD_REF = %\n" (trimright EOBJ_CHUNK_LOD_REF)
 								fseek f SectionEndOfs #seek_set
 						)
 					0x0903:
 						(
-								EOBJ_CHUNK_FLAGS = readlong f --format " EOBJ_CHUNK_FLAGS = %\n" EOBJ_CHUNK_FLAGS
+								EOBJ_CHUNK_FLAGS = readlong f
+								--format "EOBJ_CHUNK_FLAGS = %\n" EOBJ_CHUNK_FLAGS
 								if (bit.and EOBJ_CHUNK_FLAGS 1) > 0 then SkinAvailable = true
 						)
 					0x0910:
@@ -447,11 +483,13 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 												(
 													0x1000:
 														(
-																EMESH_CHUNK_VERSION = readshort f --format " EMESH_CHUNK_VERSION = %\n" EMESH_CHUNK_VERSION
+																EMESH_CHUNK_VERSION = readshort f
+																--format "\tEMESH_CHUNK_VERSION = %\n" EMESH_CHUNK_VERSION
 														)
 													0x1001:
 														(
-																EMESH_CHUNK_MESHNAME = readstring f --; format " EMESH_CHUNK_MESHNAME = %\n" EMESH_CHUNK_MESHNAME
+																EMESH_CHUNK_MESHNAME = readstring f
+																--format "\tEMESH_CHUNK_MESHNAME = %\n" EMESH_CHUNK_MESHNAME
 														)
 													0x1004:
 														(
@@ -486,7 +524,10 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 																		tv3 = readlong f
 																		append fmas [v1+1,v3+1,v2+1]
 																		append tfmas [tv1+1,tv3+1,tv2+1]
+																	
+																		--format "%, %\n" i [v1+1,v3+1,v2+1]
 																)
+																
 																
 																m = mesh vertices:vmas faces:fmas
 																m.name = EMESH_CHUNK_MESHNAME
@@ -506,21 +547,218 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 													0x1013:
 														(
 																--format " EMESH_CHUNK_SG\n"
-																--tst = #{}
-																--mi = 9999999
-																--ma = -9999999
+															
+															if SGImportType.selection == 1 then
+															(
+																local SGFaces = #(#()), var = #{}
 																
-																for i = 1 to NumFaces do 
+																for i = 1 to NumFaces do
 																(
-																	sg = readlong f #unsigned
-																	--setFaceSmoothGroup m i sg
-																	--mi = amin mi sg
-																	--ma = amax ma sg
-																	sg = abs ( mod sg 32 )
-																	setFaceSmoothGroup m i (2^sg)
+																	v = (readlong f) + 3
+																	if SGFaces[1][v] == undefined then SGFaces[1][v] = #{}
+																	append SGFaces[1][v] i
 																)
 																
-																--format "%, %\n" mi ma
+																-- remove undefined
+																--for i = 1 to SGFaces[1].count do format "%, %\n" i SGFaces[1][i]
+																for i = SGFaces[1].count to 1 by -1 do if SGFaces[1][i] == undefined then deleteitem SGFaces[1] i
+																	
+																-- sort by face count
+																qsort SGFaces[1] compareSG
+																
+																for i = 1 to 32 where SGFaces[i]!=undefined and SGFaces[i].count>1 do
+																(
+																	var = meshop.getVertsUsingFace m SGFaces[i][1]
+																	--format "i = %\n" i
+																	
+																	for j = 2 to SGFaces[i].count do
+																	(
+																		v = meshop.getVertsUsingFace m SGFaces[i][j]
+																		if (var*v).numberset == 0 then
+																		(
+																			join var v
+																			join SGFaces[i][1] SGFaces[i][j]
+																			--format "\tjoin %\n" j
+																		)
+																		else
+																		(
+																			k = i+1
+																			if SGFaces[k] == undefined then SGFaces[k] = #()
+																			append SGFaces[k] SGFaces[i][j]
+																			--format "remove sg from % to %, %\n" i k SGFaces[i][j]
+																		)
+																	)
+																)
+																
+																for i = 1 to 33 where SGFaces[i] != undefined and SGFaces[i].count > 0 do
+																(
+																	if i == 33 then
+																	(
+																		for j in SGFaces[i] do
+																		(
+																			for k in j do
+																				setFaceSmoothGroup m k (2^(i-1))
+																			setfaceselection m  j keep:true
+																		)
+																		
+																		setuserprop m "badsg" SGFaces[i]
+																		if SGFaces[i].count > 1 then format "some smoothing groups are not correct\n"
+																	)
+																	else
+																	(
+																		--for j = SGFaces[i].count to 2 by -1 do deleteitem SGFaces[i][j]
+																		for j in SGFaces[i][1] do setFaceSmoothGroup m j (2^(i-1))
+																	)
+																)
+															)
+															else
+																if true then
+																(
+																	sig = #([3,1],[2,3],[1,2])
+																	ste = #(1,2,4)
+																	SGa = for i = 1 to NumFaces collect readlong f #unsigned
+																	
+																	local SGUsed = #{}
+																	local SGroup = 0
+																	local SGStack = #(), SGStackPos = 0
+																	local SGFaces = #(#()), var = #{}
+																	
+																	for i = 1 to m.numfaces where not SGUsed[i] do
+																	(
+																		SGroup += 1
+																		SGStackPos += 1; SGStack[SGStackPos] = i
+																		SGFaces[1][SGroup] = #{}
+																		
+																		while true do
+																		(
+																			FaceInd = SGStack[SGStackPos]; SGStackPos -= 1
+																			SGUsed[FaceInd] = true
+																			--setFaceSmoothGroup m FaceInd (2^SGroup)
+																			append SGFaces[1][SGroup] FaceInd
+																			
+																			for i = 1 to 3 where bit.and SGa[FaceInd] (2^(3-i)) == 0 do
+																			(
+																				ei = (FaceInd - 1)*3 + i
+																				ope = meshop.getEdgesReverseEdge m ei
+																				
+																				for j in ope do 
+																				(
+																					k = (j-1)/3 + 1
+
+																					if not SGUsed[k] then
+																					(
+																						SGStackPos += 1
+																						SGStack[SGStackPos] = k
+																						SGUsed[k] = true
+																					)
+																				)
+																			)
+																			
+																			if SGStackPos < 1 then exit
+																		)
+																		
+																	)
+																	
+																	--format "file sg groups count = %\n" SGroup
+																	
+																	-- remove undefined
+																	--for i = 1 to SGFaces[1].count do format "%, %\n" i SGFaces[1][i]
+																	for i = SGFaces[1].count to 1 by -1 do if SGFaces[1][i] == undefined then deleteitem SGFaces[1] i
+																		
+																	-- sort by face count
+																	qsort SGFaces[1] compareSG
+																	
+																	for i = 1 to 32 where SGFaces[i]!=undefined and SGFaces[i].count>1 do
+																	(
+																		var = meshop.getVertsUsingFace m SGFaces[i][1]
+																		--format "i = %\n" i
+																		
+																		for j = 2 to SGFaces[i].count do
+																		(
+																			v = meshop.getVertsUsingFace m SGFaces[i][j]
+																			if (var*v).numberset == 0 then
+																			(
+																				join var v
+																				join SGFaces[i][1] SGFaces[i][j]
+																				--format "\tjoin %\n" j
+																			)
+																			else
+																			(
+																				k = i+1
+																				if SGFaces[k] == undefined then SGFaces[k] = #()
+																				append SGFaces[k] SGFaces[i][j]
+																				--format "remove sg from % to %, %\n" i k SGFaces[i][j]
+																			)
+																		)
+																	)
+																	
+																	for i = 1 to 33 where SGFaces[i] != undefined and SGFaces[i].count > 0 do
+																	(
+																		if i == 33 then
+																		(
+																			for j in SGFaces[i] do
+																			(
+																				for k in j do
+																					setFaceSmoothGroup m k (2^(i-1))
+																				setfaceselection m  j keep:true
+																			)
+																			
+																			setuserprop m "badsg" SGFaces[i]
+																			if SGFaces[i].count > 1 then format "some smoothing groups are not correct\n"
+																		)
+																		else
+																			for j in SGFaces[i][1] do setFaceSmoothGroup m j (2^(i-1))
+																	)
+																)
+																else
+																(
+																	sig = #([3,1],[2,3],[1,2])
+																	ste = #(1,2,4)
+																	SGa = for i = 1 to NumFaces collect readlong f #unsigned
+																	
+																	local SGUsed = #{}
+																	local SGroup = 0, cnt = 0
+																	local SGStack = #(), SGStackPos = 0
+																	
+																	for i = 1 to m.numfaces where not SGUsed[i] do
+																	(
+																		SGStackPos += 1; SGStack[SGStackPos] = i
+																		
+																		while true do
+																		(
+																			FaceInd = SGStack[SGStackPos]; SGStackPos -= 1
+																			SGUsed[FaceInd] = true
+																			setFaceSmoothGroup m FaceInd (2^SGroup)
+																			
+																			for i = 1 to 3 where bit.and SGa[FaceInd] (2^(3-i)) == 0 do
+																			(
+																				ei = (FaceInd - 1)*3 + i
+																				ope = meshop.getEdgesReverseEdge m ei
+																				
+																				for j in ope do 
+																				(
+																					k = (j-1)/3 + 1
+
+																					if not SGUsed[k] then
+																					(
+																						SGStackPos += 1
+																						SGStack[SGStackPos] = k
+																						SGUsed[k] = true
+																					)
+																				)
+																			)
+																			
+																			if SGStackPos < 1 then exit
+																		)
+																		
+																		SGroup += 1; if SGroup > 31 then SGroup = 0
+																		cnt += 1
+																	)
+																	
+																	--format "sg groups count = %\n" cnt
+																)
+																
+															update m
 														)
 													0x1008:
 														(
@@ -999,7 +1237,7 @@ on LoadModelBtn pressed do
 ) -- roll
 
 try (closeRolloutFloater XRay_ImportModel_flo) catch ()
-XRay_ImportModel_flo = newRolloutFloater "x-ray tools" 270 290 40 130
+XRay_ImportModel_flo = newRolloutFloater "x-ray tools" 270 350 40 130
 addRollout  XRay_ImportModel_rol XRay_ImportModel_flo
 --addRollout  XRay_Skeleton_rol XRay_Skeleton_flo
 

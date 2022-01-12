@@ -1,15 +1,16 @@
 -------------------------------------------------------------------------------------------------------------------------------------------
--- X-Ray SDK object export ver. 10
+-- X-Ray SDK object export ver. 20
 -- by Den-Stash
 -------------------------------------------------------------------------------------------------------------------------------------------
 
-rollout xray_export_statics_rol "x-ray *.object export ver.10"
+rollout xray_export_statics_rol "x-ray *.object export ver.20"
 (
 
 group "static"
 (
 button export_stat_btn "export static" width:160
 checkbox batch_export "batch export" align:#left
+dropdownlist StaticObjectType items:#("Static", "Multiple Usage","HOM","Sound Occluder") selection:1 tooltip:""
 --label lbl_1 "weld distance" align:#left across:2
 --spinner weld_value range:[0,100000,0.0] scale:.001 width:60 align:#right
 )
@@ -33,6 +34,7 @@ group ""
 (
 label lbl_0 "scale object" align:#left across:2
 spinner scale_value range:[0,100000,1] scale:.001 width:60 align:#right
+dropdownlist SGExportType items:#("Smoothing: Type #1", "Smoothing: Type #2") selection:1 tooltip:""
 )
 
 group "collision shapes"
@@ -73,6 +75,50 @@ fn GetSG v =
 	
 	n
 )
+
+
+fn GetSmoothByOpenEdge f obj =
+(
+	local Opened = meshop.getOpenEdges obj
+	local s = #(4,2,1)
+	local i, j, k
+	
+	for i = 1 to obj.numfaces do
+	(
+		--FaceSG = getFaceSmoothGroup obj i
+		sg = 0
+		
+		for j = 1 to 3 do
+		(
+			ei = (i-1)*3 + j
+			if Opened[ei] then sg += s[j]
+		)
+
+		writelong f sg
+	)
+)
+
+fn GetSmoothByEdge2 f Sob =
+(
+	local obj = copy Sob
+	local Opened = meshop.getOpenEdges obj
+	local s = #(4,2,1)
+	local i, j, k
+	local FGroups = for i = 1 to 32 collect #{}
+	
+	for i = 1 to obj.numfaces do
+	(
+		sg = GetSG(getFaceSmoothGroup obj i) + 1
+		append FGroups[sg] i
+	)
+	
+	for g in FGroups where g.numberset > 0 do
+		meshop.detachFaces obj g delete:true asMesh:false
+	
+	GetSmoothByOpenEdge f obj
+	delete obj
+)
+
 -------------------------------------------------------------------------------------------------------------------------------------------
 fn write_single_mesh f sobj ExportSkinMode ExportRigidMode =
 (
@@ -200,7 +246,11 @@ fn write_single_mesh f sobj ExportSkinMode ExportRigidMode =
 	
 	writelong f 0x1013												-- EMESH_CHUNK_SG
 	writelong f (NumFaces*4)
-	for i = 1 to NumFaces do writelong f (getFaceSmoothGroup obj i) --(getsg (getFaceSmoothGroup obj i))
+	
+	if SGExportType.selection == 1 then 
+		for i = 1 to NumFaces do writelong f (getsg (getFaceSmoothGroup obj i))
+	else
+		GetSmoothByEdge2 f obj
 	
 																	-- EMESH_CHUNK_VMREFS
 	writelong f 0x1008
@@ -453,7 +503,14 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 	
 	writelong f 0x0903	-- EOBJ_CHUNK_FLAGS
 	writelong f 4
-	writelong f (if ExportSkin then 1 else 0)
+	EOBJ_CHUNK_FLAGS = case StaticObjectType.selection of
+	(	1: 0
+		2: 20
+		3: 8
+		4: 32
+		default: 0
+	)
+	writelong f (if ExportSkin then 1 else EOBJ_CHUNK_FLAGS)
 	
 	format "\twriting meshes\n" ------------------------------------------------------------------------------------------ MESHES
 	writelong f 0x0910	-- EOBJ_CHUNK_MESHES
@@ -512,21 +569,28 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 		else
 		*/
 		
+		doubleSide = false
+		
 		if classof mat == S_T_A_L_K_E_R_Mtl then 
 		(
 			if mat.EShaderByName != undefined then writestring f mat.EShaderByName else writestring f "default"
 			if mat.CShaderByName != undefined then writestring f mat.CShaderByName else writestring f "default"
 			if mat.GameMtlByName != undefined then writestring f mat.GameMtlByName else writestring f "default"
+			doubleSide = mat.twoSided
 		)
 		else
 			if (xrToolsUtil.HasShadersCA mat) then
 			(
 				writestring f mat.EShader
 				writestring f mat.CShader 
-				writestring f mat.GameMaterial 
+				writestring f mat.GameMaterial
+				doubleSide = mat.twoSided
 			)
 			else
+			(
 				for j = 1 to 3 do writestring f "default"
+				if classof mat == standard then doubleSide = mat.twoSided
+			)
 		
 		dm = try (mat.diffuseMap) catch (undefined)
 		dfile = "mtl\\mtl_rja_01"
@@ -538,9 +602,11 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 			n = findstring dfile "_"
 			if n != undefined then dfile = (substring dfile 1 (n-1)) + "\\" + dfile
 		)
+		else format "#warning !!! material % hasn't diffusemap property\n" mat
+		
 		writestring f dfile
 		writestring f "Texture"
-		writelong f (if mat.twoSided then 1 else 0) -- Double side
+		writelong f (if doubleSide then 1 else 0) -- Double side
 		writelong f 0x112				-- Unk flags 1
 		writelong f 0x1					-- Unk flags 2
 	)
@@ -952,5 +1018,5 @@ on export_stat_btn pressed do
 ) -- roll
 
 try (closeRolloutFloater xray_export_statics_flo) catch ()
-xray_export_statics_flo = newRolloutFloater "x-ray tools" 200 350 120 130
+xray_export_statics_flo = newRolloutFloater "x-ray tools" 200 400 120 130
 addRollout  xray_export_statics_rol xray_export_statics_flo

@@ -26,6 +26,13 @@ rollout xray_export_skl_rol "export motion (*.skl) ver.11"
 	checkbox idle "idle"
 	checkbox UseWeaponBone "use weapon bone"
 	)
+	group "params"
+	(
+	label SSSL "speed | accure | fallof"
+	spinner ESpeed range:[0,100,1] across:3 width:40 align:#left
+	spinner EAccure range:[0,100,2] width:40 align:#center
+	spinner EFallof range:[0,100,2] width:40 align:#right
+	)
 
 	fn get_hierarchy obj =
 	(
@@ -93,9 +100,9 @@ rollout xray_export_skl_rol "export motion (*.skl) ver.11"
 			writebyte f flagi
 
 			writeshort f -1   -- unk flags
-			writefloat f 1. -- speed
-			writefloat f 2. -- accure
-			writefloat f 2. -- fallof
+			writefloat f ESpeed.value --1. -- speed
+			writefloat f EAccure.value --2. -- accure
+			writefloat f EFallof.value --2. -- fallof
 			writefloat f 1. -- unk
 			writeshort f (objs.count) -- NumBones
 			
@@ -271,7 +278,7 @@ rollout xray_export_skl_rol "export motion (*.skl) ver.11"
 
 
 try (closeRolloutFloater xray_export_skl_flo) catch ()
-xray_export_skl_flo = newRolloutFloater "x-ray tools" 200 390 40 130
+xray_export_skl_flo = newRolloutFloater "x-ray tools" 200 460 40 130
 addRollout  xray_export_skl_rol xray_export_skl_flo
 
 

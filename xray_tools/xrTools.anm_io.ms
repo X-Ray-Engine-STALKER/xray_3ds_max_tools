@@ -13,6 +13,11 @@ checkbox DumpMode "save every X frame" across:2 align:#left checked:true enabled
 --label step_text "step" across:2 align:#left
 spinner dstep type:#integer range:[1,10000,5] align:#right width:40
 
+group ""
+(
+	checkbox UseParent "relative to object"
+	pickbutton ParentPick "Pick parent object" width:160 autoDisplay:true
+)
 /*
 group "reduce keys"
 (
@@ -28,6 +33,12 @@ spinner scale_value range:[0,100000,1] scale:.001 width:60 align:#right
 	
 local CSig = #(2,3,1)
 local DumpOrder = 4, sig = [-1., -1., -1.]
+
+on ParentPick rightclick do
+(
+	ParentPick.object = undefined
+	ParentPick.text = "Pick parent object"
+)
 
 fn ExportAnm f sobj =
 (
@@ -46,7 +57,8 @@ fn ExportAnm f sobj =
 					while true do
 					(
 						TRF = at time t sobj.transform
-						at time t obj.transform = CAM_TM*TRF
+						PTM = if UseParent.checked then inverse (at time t ParentPick.object.transform) else matrix3 1
+						at time t obj.transform = CAM_TM*(TRF * PTM)
 						t += t_step
 						if t == animationRange.end + t_step then exit
 						if t > animationRange.end then t = animationRange.end
@@ -137,7 +149,7 @@ fn ExportAnm f sobj =
 
 fn LoadAnm f yobj = 
 (
-	local obj = if CamMode.checked then freeCamera targetDistance:1 fov:65 else point axistripod:true size:1 axisLength:1
+	local obj = if CamMode.checked then freeCamera targetDistance:1 fov:38.5 else point axistripod:true size:1 axisLength:1
 	select obj
 	local i, j, k, u1, NumKeys
 	
@@ -170,7 +182,7 @@ fn LoadAnm f yobj =
 					KeyVal = readfloat f
 					KeyTime = readfloat f
 					k = #(readbyte f, readshort f, readshort f, readshort f, readshort f, readshort f, readshort f, readshort f) --; fseek f 15 #seek_cur
-					format "\t key %: time %: value %: %\n" j KeyTime KeyVal k
+					--format "\t key %: time %: value %: %\n" j KeyTime KeyVal k
 					
 					if obj != undefined then
 					(
@@ -185,29 +197,33 @@ fn LoadAnm f yobj =
 	
 	if obj != undefined then
 	(
-			obj.position.track = bezier_position()
-			obj.rotation.track = euler_xyz()
+		obj.position.track = bezier_position()
+		obj.rotation.track = euler_xyz()
+		
+		for k in ctime.keys do
+		(
+			t = k.time
+			px = at time t ctr[1].value
+			pz = at time t ctr[2].value
+			py = at time t ctr[3].value
+			rx = at time t ctr[4].value
+			rz = at time t ctr[5].value
+			ry = at time t ctr[6].value
 			
-			for k in ctime.keys do
-			(
-					t = k.time
-					px = at time t ctr[1].value
-					pz = at time t ctr[2].value
-					py = at time t ctr[3].value
-					rx = at time t ctr[4].value
-					rz = at time t ctr[5].value
-					ry = at time t ctr[6].value
-					
-					tm2 = if CamMode.checked then rotatexmatrix 90 else matrix3 1
-					tm2 = (rotateZMatrix -(radtodeg rx))*tm2
-					tm2 = (rotateXMatrix -(radtodeg rz))*tm2
-					tm2 = (rotateYMatrix -(radtodeg ry))*tm2
-					tm2.row4 = [px,py,pz]*scale_value.value
-					
-					animate on at time t obj.transform = tm2
-					
-					--format "\t\t%: [%,%,%] \n" t px py pz
-			)
+			tm2 = matrix3 1
+			tm2 = (rotateZMatrix -(radtodeg rx))*tm2
+			tm2 = (rotateXMatrix -(radtodeg rz))*tm2
+			tm2 = (rotateYMatrix -(radtodeg ry))*tm2
+			tm2.row4 = [px,py,pz]*scale_value.value
+			
+			PTM = if UseParent.checked then at time t ParentPick.object.transform else matrix3 1
+			animate on at time t obj.transform = tm2
+			--format "\t\t%: [%,%,%] \n" t px py pz
+		)
+		
+		set animate off
+		if CamMode.checked then obj.transform = (rotatexmatrix 90)*obj.transform
+		set animate on
 	)
 	
 	AnimationRange = (interval 0 EndFrame)
@@ -256,6 +272,9 @@ on ClrAnimaBtn pressed do
 ---------------------------
 on LoadBtn pressed do
 (
+	if UseParent.checked and (not isvalidnode ParentPick.object) then messagebox "parent node not valid"
+	else
+	(
 		fname = getopenfilename types:"xray anm|*.anm|" \
 				filename:"C:\\Program Files\\X-Ray CoP SDK\\editors\\gamedata\\anims\\camera_effects\\scenario_cam\\pripyat\\"
 		
@@ -273,10 +292,14 @@ on LoadBtn pressed do
 						fclose f
 				)
 		)
+	)
 )
 ---------------------------
 on ExportBtn pressed do if $ != undefined then
 (
+	if UseParent.checked and (not isvalidnode ParentPick.object) then messagebox "parent node not valid"
+	else
+	(
 		fname = getsavefilename types:"xray anm|*.anm|" \
 				filename:"C:\\Program Files\\X-Ray CoP SDK\\editors\\Import\\"
 		if fname != undefined then 
@@ -290,13 +313,14 @@ on ExportBtn pressed do if $ != undefined then
 						fclose f
 				)
 		)
+	)
 )
 
 
 ) -- roll
 
 try (closeRolloutFloater Xray_anm_io_flo) catch ()
-Xray_anm_io_flo = newRolloutFloater "x-ray tools" 200 190 40 330
+Xray_anm_io_flo = newRolloutFloater "x-ray tools" 200 270 40 330
 addRollout  Xray_anm_io_rol Xray_anm_io_flo
 
 

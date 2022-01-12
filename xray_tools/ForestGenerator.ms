@@ -451,7 +451,7 @@ rollout XRayCloner_rol ""
 				emitter:TerrainPick.object formation:3 numDistinctPoints:TestPointsNum.value \
 				Use_Selected_Subobjects:UseSub.TriState quantityMethod:1 \
 				total_number:TestPointsNum.value iconHidden:true \
-				speed:0.0 Speed_Variation:0  Emitter_Start:sliderTime Emitter_Stop:sliderTime \
+				speed:0.0 Speed_Variation:0  Emitter_Start:(sliderTime-10) Emitter_Stop:(sliderTime-10) life:30 \
 				isHidden:false viewPercent:100 \
 				seed:(random 0 1000)
 		

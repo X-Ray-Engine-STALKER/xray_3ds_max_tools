@@ -69,6 +69,7 @@ utility xrayUtilites "x-ray tools"
 	(
 		--button ShowLinksBtn "show links" width:120 align:#center
 		button ForestBtn "forest generator" width:120 align:#center
+		--button WpnHelperBtn "wpn hud helper" width:120 align:#center
 		button BoneScalerBtn "scaler tool" width:120 align:#center tooltip:"scale collision files (*.bones), scale animation position keys (*.skl/*skls)"
 		button SimpleFenceBtn "simple fence" width:120 align:#center
 		button EditOmfBtn "OMF editor" width:120 align:#center
@@ -93,6 +94,9 @@ utility xrayUtilites "x-ray tools"
 			
 	on RagDollBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrayTools.RagDollValuesHelper.ms") quiet:true) 
 		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrayTools.RagDollValuesHelper.ms"))
+			
+	--on WpnHelperBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.wpn_hud_helper.ms") quiet:true) 
+		--catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.wpn_hud_helper.ms"))
 			
 	--on AttachWeaponBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.attach_weapon.ms") quiet:true) 
 		--catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.attach_weapon.ms"))
