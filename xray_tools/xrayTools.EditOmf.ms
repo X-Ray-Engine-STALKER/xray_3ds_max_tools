@@ -82,7 +82,9 @@ fn ReadBoneData f =
 			a3 = readshort f -- index-1
 			a4 = for k = 1 to 4 collect readfloat f
 			
-		 	cnt2 = readlong f
+		 	--cnt2 = readlong f
+			
+			cnt2 = 0
 			
 			--format "%:% [%], [%], %\n" a3 str a1 a2 a4
 			
@@ -242,7 +244,8 @@ fn AppendFile f1 f2 fo =
 	(
 			str = readstring f1 ; writestring fo str
 			CopyData f1 fo 24
-			cnt2 = readlong f1 ; writelong fo cnt2
+			-- cnt2 = readlong f1 ; writelong fo cnt2
+			cnt2 = 0
 			
 			format ":%\n" str
 			
@@ -283,7 +286,8 @@ fn AppendFile f1 f2 fo =
 			
 			CopyData f2 fo 16
 			
-			cnt2 = readlong f2 ; writelong fo cnt2
+			-- cnt2 = readlong f2 ; writelong fo cnt2
+			cnt2 = 0
 			
 			format ":%\n" str
 			
@@ -468,8 +472,10 @@ on DeleteAnimBtn pressed do
 						)
 						else fseek f 24 #seek_cur
 						
-					 	cnt2 = readlong f
-						if ind[i] == false then writelong fo cnt2
+					 	-- cnt2 = readlong f
+						-- if ind[i] == false then writelong fo cnt2
+						
+						cnt2 = 0
 						
 						format ":%\n" str
 						
