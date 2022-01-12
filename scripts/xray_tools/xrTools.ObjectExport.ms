@@ -56,6 +56,9 @@ fn write_single_mesh f sobj ExportSkinMode ExportRigidMode =
 	local ExportSkin = false
 	local BoneTabIndex = #()
 	local SkinMod = sobj.modifiers[1]
+	
+	max modify mode
+	
 	if classof SkinMod == skin and ExportSkinMode then
 	(
 		select obj
@@ -380,8 +383,8 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 		for m in mats do if finditem MaterialList m == 0 then append MaterialList m
 	)
 	
-	for i = 1 to MaterialList.count-1 do
-		for j = i+1 to MaterialList.count do
+	for i = 1 to MaterialList.count-1 where MaterialList[i] != undefined do
+		for j = i+1 to MaterialList.count where MaterialList[j] != undefined do
 			if stricmp MaterialList[i].name MaterialList[j].name == 0 then assignNewName MaterialList[j]
 	
 	MaterialList = #()
@@ -484,9 +487,9 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 		
 		if classof mat == S_T_A_L_K_E_R_Mtl then 
 		(
-			writestring f mat.EShaderByName
-			writestring f mat.CShaderByName
-			writestring f mat.GameMtlByName
+			if mat.EShaderByName != undefined then writestring f mat.EShaderByName else writestring f "default"
+			if mat.CShaderByName != undefined then writestring f mat.CShaderByName else writestring f "default"
+			if mat.GameMtlByName != undefined then writestring f mat.GameMtlByName else writestring f "default"
 		)
 		else
 			if (xrToolsUtil.HasShadersCA mat) then
@@ -499,12 +502,12 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 				for j = 1 to 3 do writestring f "default"
 		
 		dm = try (mat.diffuseMap) catch (undefined)
+		dfile = "mtl\\mtl_rja_01"
 		
-		if dm == undefined then dfile = "mtl\\mtl_rja_01"
-		else
+		if dm != undefined then
 		(
-			dfile = getfilenamefile dm.filename
-			if dfile == "" then dfile = "mtl\\mtl_rja_01"
+			dfile = if dm.filename != undefined then getfilenamefile dm.filename else "mtl_rja_01"
+			if dfile == "" or dfile == undefined then dfile = "mtl_rja_01"
 			n = findstring dfile "_"
 			if n != undefined then dfile = (substring dfile 1 (n-1)) + "\\" + dfile
 		)
@@ -724,6 +727,7 @@ on export_skin_btn pressed do
 on export_stat_btn pressed do
 (
 	InitialPath = (getinisetting (scriptspath + "xr_scripts_settings.txt") "paths" "InitialStaticExportPath") + "\\"
+	ObjectsPath = getinisetting (scriptspath + "xr_scripts_settings.txt") "paths" "last_objects_path"
 	
 	if batch_export.checked then
 	(
@@ -747,7 +751,9 @@ on export_stat_btn pressed do
 							(
 								format "exporting %\n" fname
 								--ts = timestamp()
-								try (export_object f #(eobj) false false) catch ( format "### export failed\n%\n" (getcurrentexception()) )
+								--try (export_object f #(eobj) false false) catch ( format "### export failed\n%\n" (getcurrentexception()) )
+								export_object f #(eobj) false false
+								setuserprop eobj "ref_name" ((substring (getfilenamepath fname) (ObjectsPath.count+2) -1) + (getfilenamefile fname))
 								fclose f
 								--format "done at % sec\n" ((timestamp() - ts)/1000.)
 							)
@@ -775,8 +781,10 @@ on export_stat_btn pressed do
 					(
 						format "exporting %\n" fname
 						--ts = timestamp()
-						try (export_object f eobj false false) catch ( format "### export failed\n%\n" (getcurrentexception()) )
+						--try (export_object f eobj false false) catch ( format "### export failed\n%\n" (getcurrentexception()) )
+						export_object f eobj false false
 						--format "done at % sec\n" ((timestamp() - ts)/1000.)
+						for obj in eobj do setuserprop obj "ref_name" ((substring (getfilenamepath fname) (ObjectsPath.count+2) -1) + (getfilenamefile fname))
 					)
 				fclose f
 				format "done at % sec\n" ((timestamp() - ts)/1000.)

@@ -7,11 +7,12 @@ rollout xrGetFiles ""
 	
 	button loadBtn "LOAD" across:2 width:80
 	button cancelBtn "CANCEL" width:80
+	--radiobuttons sort [ <caption> ] labels:<array_of_strings> [default:<number>] [columns:<number>]
 	
 	on xrGetFiles open do
 	(
 		pathInfo.text = xrImportFilesPath
-		lbfiles.items = for i in (getfiles(xrImportFilesPath + "\\*.object")) collect (filenamefrompath i)
+		lbfiles.items = for i in (getfiles(xrImportFilesPath + "\\*.object")) collect (filenamefrompath i) --((getfilenamefile i) + "| " + ((getfilesize i) as string) + " bytes")
 	)
 	
 	on cancelBtn pressed do
@@ -22,7 +23,7 @@ rollout xrGetFiles ""
 	
 	on loadBtn pressed do
 	(
-		xrImportFilesList = for i in lbfiles.selection collect (xrImportFilesPath + "\\" + lbfiles.items[i])
+		xrImportFilesList = for i in lbfiles.selection collect (xrImportFilesPath + "\\" + lbfiles.items[i]) --(filterstring(lbfiles.items[i] "|"))[1] + ".object")
 		destroyDialog xrGetFiles
 	)
 )

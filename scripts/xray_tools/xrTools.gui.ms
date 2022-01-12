@@ -66,12 +66,18 @@ utility xrayUtilites "x-ray tools"
 	group "utils"
 	(
 		button ShowLinksBtn "show links" width:120 align:#center
+		button BoneScalerBtn "scaler tool" width:120 align:#center tooltip:"scale collision files (*.bones), scale animation position keys (*.skl/*skls)"
+		button SimpleFenceBtn "simple fence" width:120 align:#center
 	)
 	
 	on ShowLinksBtn pressed do
 		for obj in selection do obj.showlinks = true
 		
-		
+	on BoneScalerBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.BoneScaler.ms") quiet:true) 
+		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.BoneScaler.ms"))
+
+	on SimpleFenceBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.SimpleFence.ms") quiet:true) 
+		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.SimpleFence.ms"))
 		
 	--label txt_00 "-------------------------------" offset:[0,12]
 	--label txt_01 "by Den-Stash"

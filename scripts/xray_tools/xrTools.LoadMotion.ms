@@ -7,6 +7,8 @@ listbox AnimList items:#() height:16
 button LoadAnim "Load animation"
 button ResetPoseBtn "Reset pose"
 
+checkbox SetARange "set animation range"
+
 struct s_anim_name ( name, index )
 local AnimFileName = undefined, Animas = #()
 
@@ -80,11 +82,12 @@ fn load_single_skl f start_t =
 				
 				--bo = execute ("$" + BoneName)
 				bo = undefined
-				for xo in selection do if BoneName == xo.name then (bo = xo ; exit)
-				
 				format "bone: %\n" BoneName
 				
-				if bo == undefined then ( format "#################### BONE NOT FOUNDED\n")
+				for xo in selection do 
+					if (stricmp BoneName xo.name) == 0 then (bo = xo ; exit)
+					
+				if bo == undefined then ( format "### warning: BONE OBJECT NOT FOUNDED\n")
 				--else format "found bone %\n" bo
 
 				ctr = for j = 1 to 6 collect linear_float ()
@@ -145,7 +148,8 @@ fn load_single_skl f start_t =
 		) -- i
 		
 		--if (FEnd-1) > FStart then animationRange = interval (FStart+start_t) (FEnd-1+start_t) else animationRange = interval (FStart+start_t) (FStart+1+start_t)
-		if (FEnd-1) > 0 then animationRange = interval 0 (FEnd-1+start_t) else animationRange = interval 0 (FStart+1+start_t)
+		if SetARange.checked then
+			if (FEnd-1) > 0 then animationRange = interval 0 (FEnd-1+start_t) else animationRange = interval 0 (FStart+1+start_t)
 )
 
 --------------------------------------------------------------------------------------------------------
@@ -252,7 +256,7 @@ on LoadAnim pressed do
 
 
 try (closeRolloutFloater XRay_Skeleton_flo) catch ()
-XRay_Skeleton_flo = newRolloutFloater "x-ray tools" 270 380 40 130
+XRay_Skeleton_flo = newRolloutFloater "x-ray tools" 270 400 40 130
 addRollout  XRay_Skeleton_rol XRay_Skeleton_flo
 
 

@@ -11,13 +11,15 @@ dropdownlist xrMtlType items:#("standard material","stalker material","standard 
 
 checkbox AttachChk "create single mesh" align:#left
 checkbox LoadShapeChk "load bone collision" align:#left
+checkbox MergeMaterials "use scene material" align:#left
+
 label Lbl "textures path" align:#left
 edittext TPathTxt width:200 align:#left across:2
 button GetTPathBtn "get" align:#right width:24
 
---label Lblb "objects path" align:#left
---edittext ObjPathTxt width:240 align:#left across:2 --enabled:false
---button GetObjPathBtn "get" align:#right width:24
+label Lblb "objects path" align:#left
+edittext ObjPathTxt width:200 align:#left across:2 --enabled:false
+button GetObjPathBtn "get" align:#right width:24
 
 /*
 group "skin vertex weights"
@@ -84,7 +86,7 @@ fn FinalSettings a fname =
 			)
 			else a[1][1].name = (getfilenamefile fname)
 			
-			--setuserprop a[1][1] "ref_name" ((substring (getfilenamepath fname) (ObjPathTxt.text.count+2) -1) + (getfilenamefile fname))
+			setuserprop a[1][1] "ref_name" ((substring (getfilenamepath fname) (ObjPathTxt.text.count+2) -1) + (getfilenamefile fname))
 		)
 )
 
@@ -100,7 +102,20 @@ fn xray_check_scene_materials fname EngineMaterial CompileMaterial GameMaterial 
 		(
 			case (classof m) of
 			(
-				--Standard:	dm = mat.diffusemap
+				Standard:
+					if (xrToolsUtil.HasShadersCA m) then
+					(
+						dm = m.diffusemap
+						if dm!=undefined then
+							if dm.filename != undefined then
+								if (stricmp fname dm.filename) == 0 and m.EShader == EngineMaterial and 
+									m.CShader == CompileMaterial and m.GameMaterial == GameMaterial and 
+									(m.twoSided == (MaterialDoubleSide!=0)) then 
+									(
+										--format "material replaced %\n" fname
+										return m
+									)
+					)
 				S_T_A_L_K_E_R_Mtl:	
 					(
 						dm = m.diffusemap
@@ -482,7 +497,14 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 																for i = 1 to NumVMREFS do
 																(
 																		Cnt = readbyte f
-																		XTable[i] = for j = 1 to Cnt collect #(readlong f, readlong f)
+																		XTable[i] = #()
+																		for j = 1 to Cnt do 
+																		(
+																			v1 = readlong f #unsigned
+																			v2 = readlong f #unsigned
+																			if v1 > 88 then (v1 = 0 ; v2 = 0)
+ 																			XTable[i][j] = #(v1, v2)
+																		)
 																)
 
 																fseek f (SectionSize + StartPos) #seek_set
@@ -603,7 +625,8 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 												MaterialUnkLong1 = readlong f --; format "\t\t\tMaterialUnkLong1 : 0x%\n" (bit.intashex MaterialUnkLong1)
 												MaterialUnkLong2 = readlong f --; format "\t\t\tMaterialUnkLong2 : 0x%\n" (bit.intashex MaterialUnkLong2)
 												
-												chema = undefined --xray_check_scene_materials (TexPath + "\\" + FileNameMaterial + ".dds") EngineMaterial CompileMaterial GameMaterial MaterialDoubleSide
+												chema = if not MergeMaterials.checked then undefined 
+														else xray_check_scene_materials (TexPath + "\\" + FileNameMaterial + ".dds") EngineMaterial CompileMaterial GameMaterial MaterialDoubleSide
 												
 												if chema == undefined then
 												(
@@ -802,7 +825,6 @@ on GetTPathBtn pressed do
 		)
 )
 
-/*
 on GetObjPathBtn pressed do
 (
 		p = getsavepath caption:"Select X-Ray SDK objects path"
@@ -813,14 +835,13 @@ on GetObjPathBtn pressed do
 				setIniSetting fname "paths" "last_objects_path" p
 		)
 )
-*/
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
 on XRay_ImportModel_rol open do
 (
 		fname = scriptspath + "xr_scripts_settings.txt"
 		TPathTxt.text = getIniSetting fname "paths" "last_textures_path"
-		--ObjPathTxt.text = getIniSetting fname "paths" "last_objects_path"
+		ObjPathTxt.text = getIniSetting fname "paths" "last_objects_path"
 		LoadShapeChk.enabled = false --( XRayCollision != undefined)
 )
 
@@ -1039,8 +1060,9 @@ on LoadModelBtn pressed do
 								(
 									with redraw off
 									(
-										try (a = load_object f fname filesize true LoadSkinChk.checked)
-										catch ( a = #() ; format "### error: %\n\n" (getcurrentexception()) )
+										--try (a = load_object f fname filesize true LoadSkinChk.checked)
+										--catch ( a = #() ; format "### error: %\n\n" (getcurrentexception()) )
+										a = load_object f fname filesize true LoadSkinChk.checked
 									)
 								)
 
@@ -1081,8 +1103,9 @@ on LoadModelBtn pressed do
 												filesize = getfilesize fname
 												format "% |size = %\n" fname filesize 
 												pushPrompt ("loading " + (CurObjectIndex as string) + " of " + (files.count as string))
-												try (a = load_object f fname filesize true LoadSkinChk.checked)
-												catch ( a = #() ; format "### error: %\n\n" (getcurrentexception()) )
+												--try (a = load_object f fname filesize true LoadSkinChk.checked)
+												--catch ( a = #() ; format "### error: %\n\n" (getcurrentexception()) )
+												a = load_object f fname filesize true LoadSkinChk.checked
 												if not LoadSkinChk.checked then FinalSettings a fname
 												fclose f
 										)
@@ -1105,7 +1128,7 @@ on LoadModelBtn pressed do
 ) -- roll
 
 try (closeRolloutFloater XRay_ImportModel_flo) catch ()
-XRay_ImportModel_flo = newRolloutFloater "x-ray tools" 270 180 40 130
+XRay_ImportModel_flo = newRolloutFloater "x-ray tools" 270 250 40 130
 addRollout  XRay_ImportModel_rol XRay_ImportModel_flo
 --addRollout  XRay_Skeleton_rol XRay_Skeleton_flo
 

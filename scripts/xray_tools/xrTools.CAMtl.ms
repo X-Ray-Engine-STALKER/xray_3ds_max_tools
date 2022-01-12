@@ -26,6 +26,7 @@ xrShadersDataCA = attributes xrShadersData
 		on EShaderGet pressed do
 		(
 			xrShaderTypeChoosen = 1
+			--format "test: %\n" (custAttributes.getOwner this)
 			try ( filein (scriptsPath + "xray_tools\\xrtools.shaderSelector.ms") ) catch (messagebox "Install x-ray tools in order to use this option")
 		)
 		on CShaderGet pressed do
