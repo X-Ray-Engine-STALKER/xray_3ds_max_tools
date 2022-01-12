@@ -1,9 +1,9 @@
 -------------------------------------------------------------------------------------------------------------------------------------------
--- X-Ray SDK object export ver. 3
+-- X-Ray SDK object export ver. 20
 -- by Den-Stash
 -------------------------------------------------------------------------------------------------------------------------------------------
 
-rollout xray_export_statics_rol "x-ray *.object export ver.3"
+rollout xray_export_statics_rol "x-ray *.object export ver.20"
 (
 
 group "static"
@@ -35,16 +35,6 @@ group ""
 label lbl_0 "scale object" align:#left across:2
 spinner scale_value range:[0,100000,1] scale:.001 width:60 align:#right
 dropdownlist SGExportType items:#("Smoothing: Type #1", "Smoothing: Type #2") selection:1 tooltip:""
-)
-
-group "bone defaults"
-(
-	label lbl_011 "friction" align:#left across:2
-	spinner BoneDefaultFriction range:[0,100000,0.8] width:60 align:#right
-	label lbl_012 "spring factor" align:#left across:2
-	spinner BoneDefaultSpring range:[0,100000,0.5] width:60 align:#right
-	label lbl_013 "damping factor" align:#left across:2
-	spinner BoneDefaultDamping range:[0,100000,1.5] width:60 align:#right
 )
 
 group "collision shapes"
@@ -134,7 +124,7 @@ fn write_single_mesh f sobj ExportSkinMode ExportRigidMode =
 (
 	local i, j, k
 	local Result = #() -- [1] = used matID as bitarray
-	local obj = snapshot sobj
+	local obj = copy sobj
 	
 	local ExportSkin = false
 	local BoneTabIndex = #()
@@ -443,7 +433,6 @@ fn write_single_mesh f sobj ExportSkinMode ExportRigidMode =
 			for j in VTable[i] do writefloat f 0
 		)
 	)
-	
 	
 	tempSizeOfs2 = ftell f
 	fseek f tempSizeOfs1 #seek_set
@@ -799,30 +788,29 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 			
 			writelong f 8
 			writelong f 4
-			writelong f 0	-- brakebell
+			writefloat f 0
 			
 			writelong f 6
 			writelong f 60
 			writelong f 0 -- joint_type
-			
 			for k = 1 to 3 do
 			(
 				writefloat f 0 -- axis min
 				writefloat f 0 -- axis max
-				writefloat f BoneDefaultSpring.value -- SprFactor
-				writefloat f BoneDefaultDamping.value -- DumpFactor
+				writefloat f 1 -- SprFactor
+				writefloat f 1 -- DumpFactor
 			)
-			writefloat f BoneDefaultSpring.value -- SprFactor				
-			writefloat f BoneDefaultDamping.value -- DumpFactor
+			writefloat f 1 -- SprFactor				
+			writefloat f 1 -- DumpFactor
 			
 			writelong f 9  -- unk floats
 			writelong f 8
-			writefloat f 0 -- brake force
-			writefloat f 0 -- brake torque
+			writefloat f 0
+			writefloat f 0
 			
 			writelong f 16	-- unk float
 			writelong f 4
-			writefloat f BoneDefaultFriction.value -- Friction
+			writefloat f 0.
 			
 			writelong f 7	-- mass
 			writelong f 16
@@ -841,21 +829,6 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 		writelong f (curOfs - ChangeOffset_bones - 4)
 		fseek f curOfs #seek_set
 		
-		
-		if true then
-		(
-			TabNames = for i = 1 to NumBones collect xrToolsUtil.renameBone (skinOps.GetBoneName SkinMod i 0)
-				
-			--format "TEST: %\n" TabNames
-			writelong f 2339
-			curOfs = 0
-			for j in TabNames where j!=undefined do curOfs += j.count + 1
-			writelong f (16 + curOfs)
-			writelong f 1
-			writestring f "default"
-			writelong f NumBones
-			for j in TabNames where j!=undefined do writestring f j
-		)		
 	)
 	
 	
@@ -958,21 +931,16 @@ on export_skin_btn pressed do
 		(
 			clearlistener()
 			f = fopen fname "wb"
-			if f == undefined then messagebox "cant save file"
-			else
-			(
-				ts = timestamp()
-				with undo off
-					--with redraw off
-					(
-						format "exporting %\n" fname
-						export_object f #(selection[1]) true false
-						--try (export_object f #(selection[1]) true false) 
-						--catch( format "### export failed\n%\n" (getcurrentexception()) ) -- UseRigidExp.checked
-					)
-				format "done at % sec\n" ((timestamp() - ts)/1000.)
-			)
+			ts = timestamp()
+			with undo off
+				--with redraw off
+				(
+					format "exporting %\n" fname
+					try (export_object f #(selection[1]) true false) 
+					catch( format "### export failed\n%\n" (getcurrentexception()) ) -- UseRigidExp.checked
+				)
 			fclose f
+			format "done at % sec\n" ((timestamp() - ts)/1000.)
 		)
 	)
 )
@@ -1050,5 +1018,5 @@ on export_stat_btn pressed do
 ) -- roll
 
 try (closeRolloutFloater xray_export_statics_flo) catch ()
-xray_export_statics_flo = newRolloutFloater "x-ray tools" 200 360 120 130
+xray_export_statics_flo = newRolloutFloater "x-ray tools" 200 400 120 130
 addRollout  xray_export_statics_rol xray_export_statics_flo

@@ -1,0 +1,19 @@
+X-Ray tools(2016-august) - unofficial.
+
+Что нового:
+
+xrTools.LoadMotion 	- обновлен до версии 0.3
+xrTools.ObjectExport	- обновлен до версии 0.3
+xrTools.CForm_IO	- новый скрипт импорта\экспорта коллижн-модели уровней
+xrTools.occlu_io	- новый скрипт импорта\экспорта моделей окклюжена геометрии (HOM) и звука (SOM)
+
+
+Установка:
+Распаковать содержимое архива в папку Scripts
+Например, E:\Program Files\Autodesk\3ds Max 2014\scripts
+
+
+Автор: Dan-Stash
+Обновил: Scarabay
+
+16.08.2016

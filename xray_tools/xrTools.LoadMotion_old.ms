@@ -1,9 +1,9 @@
-rollout XRay_Skeleton_rol "x-ray load *.skls v.30"
+rollout XRay_Skeleton_rol "x-ray load *.skls v.10"
 (
 button CreateList "Get animation file" width:230
 label FLabel "" align:#left
 label ALabel "animations:" align:#left
-listbox AnimList items:#() height:28
+listbox AnimList items:#() height:16
 button LoadAnim "LOAD MOTION" height:30 width:230
 label lbl_0 "scale factor" align:#left across:2
 spinner ScaleFactor range:[0,100000,1]  width:60 align:#right
@@ -31,33 +31,13 @@ fn FNSortAnim v1 v2 =
 		)
 )
 
-------------------------------------------------------------------------------------------------------------
-fn ReadSuperString f =
-(
-		local str = "" , ch, b
-		while true do
-		(
-				b = readbyte f
-				if (b == 0) or (b==10) then return str
-				append str (bit.intaschar b)
-		)
-)
-
-------------------------------------------------------------------------------------------------------------
-fn writeSuperString f str =
-(
-		local i
-		for i = 1 to str.count do writebyte f (bit.charasint str[i])
-		writebyte f 10
-)
-
 --------------------------------------------------------------------------------------------------------------------------------------------------
 fn PassAnimation f =
 (
-		local i, j, u, count, BoneName, flagStr = "", PlusData = undefined
+		local i, j, u, count, BoneName, flagStr = ""
 		local a1 = readlong f
 		local a2 = readlong f
-		--format "%, %\n" a1 a2
+		--fseek f 25 #seek_cur
 		local FRate = readfloat f, UnkShort1 = readshort f , flagi = readbyte f , UnkShort2 = readshort f
 		
 		if flagi > 0 then 
@@ -82,29 +62,9 @@ fn PassAnimation f =
 				)
 		) -- i
 		
-		--/*
-		n1 = readlong f --; format "@@@ = % [%]\n" n1 (ftell f)
-		if n1 != undefined then
-			if n1 < 0 or n1 > 6 then fseek f -4 #seek_cur
-			else
-				(
-					--format "___________________________________________________________________________________________\n"
-					if n1>0 then PlusData = #()
-					
-					for i = 1 to n1 do
-					(
-						str = ReadSuperString f
-						PlusData[i] = #(str)
-						n2 = readlong f
-						if n2>0 then append PlusData[i] (for j = 1 to n2 collect #(readfloat f, readfloat f))
-						--format "[%] %\n" (trimright str) b
-					)
-				)
+		--readlong f
 		
-		--print PlusData
-		--*/
-		
-		return #(a1,a2,ASpeed,AAccure,AFallof,flagStr,PlusData)
+		return #(a1,a2,ASpeed,AAccure,AFallof,flagStr)
 )
 
 --------------------------------------------------------------------------------------------------------------------------------------------------
@@ -254,7 +214,6 @@ on CreateList pressed do
 		
 		clearlistener ()
 		str = ""
-		MsgStr = #()
 		
 		if fname != undefined then
 		(
@@ -282,18 +241,10 @@ on CreateList pressed do
 								)
 								j = s_anim_name name:(str) index:i
 								append Animas j
-								
-								--format "animation:% (ofs %)\n" str (ftell f)
-								
 								b = PassAnimation f
-								--format "%,\t frames %, speed %, accure %, fallof %" str b[2] b[3]  b[4]  b[5]
-								--if b[6] == "" then format "\n" else format ", flags |%\n" b[6]
-								AddStr = str + ",\t frames " + (b[2] as string) + ",speed " + (b[3] as string) + ",accure " + (b[4] as string) + ",fallof " + (b[5] as string)
-								if b[6] != "" then AddStr += ", flags |" + b[6]
-								append MsgStr AddStr
+								format "%,\t frames %, speed %, accure %, fallof %" str b[2] b[3]  b[4]  b[5]
+								if b[6] == "" then format "\n" else format ", flags |%\n" b[6]
 						)
-						
-						--format "ofs = %\n" (ftell f)
 						
 						--print Animas
 						qsort Animas FNSortAnim
@@ -304,9 +255,6 @@ on CreateList pressed do
 						ALabel.text = "animations: (selected " + (Animas[1].index as string) + "/" + (AnimList.items.count as string) + ")"
 						AnimList.selection = 1
 						fclose f
-						
-						sort MsgStr
-						for s in MsgStr do format "%\n" s
 				)
 		)
 )
@@ -348,7 +296,7 @@ on LoadAnim pressed do
 
 
 try (closeRolloutFloater XRay_Skeleton_flo) catch ()
-XRay_Skeleton_flo = newRolloutFloater "x-ray tools" 270 600 40 130
+XRay_Skeleton_flo = newRolloutFloater "x-ray tools" 270 450 40 130
 addRollout  XRay_Skeleton_rol XRay_Skeleton_flo
 
 

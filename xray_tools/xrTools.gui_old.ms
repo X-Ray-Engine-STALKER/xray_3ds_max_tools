@@ -13,8 +13,6 @@ utility xrayUtilites "x-ray tools"
 	button LoadSklsBtn "Load motion" width:120
 	button ExportMotionBtn "Export motion" width:120
 	button AnmIOBtn "*.anm i/o" width:120
-	button OccIOBtn "Occlusion i/o" width:120
-	button CformIOBtn "*.cform i/o" width:120
 	
 	on ImpObjBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.ObjectImport.ms") quiet:true) 
 		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.ObjectImport.ms"))
@@ -26,10 +24,6 @@ utility xrayUtilites "x-ray tools"
 		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.ExportMotion.ms"))
 	on AnmIOBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.anm_io.ms") quiet:true) 
 		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.anm_io.ms"))
-	on OccIOBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.occlu_io.ms") quiet:true) 
-		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.occlu_io.ms"))
-	on CformIOBtn pressed do try ( fileIn (scriptspath+"\\xray_tools\\xrTools.cform_io.ms") quiet:true) 
-		catch (messagebox("file not founded " + scriptspath+"\\xray_tools\\xrTools.cform_io.ms"))
 			
 	
 	group "material helper"
