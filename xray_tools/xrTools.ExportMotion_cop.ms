@@ -1,4 +1,4 @@
-rollout xray_export_skl_rol "export motion (*.skl) ver.11"
+rollout xray_export_skl_rol "export motion (*.skl) ver.10"
 (
 	button exportBtn "Export motion" width:160 --across:2
 	radiobuttons ExportType labels:#("skl","skls","skls+") columns:3
@@ -86,7 +86,7 @@ rollout xray_export_skl_rol "export motion (*.skl) ver.11"
 			
 			writefloat f FRate
 			
-			writeshort f 6 -- objs.count   -- unk "animated bones ?"
+			writeshort f 7 -- objs.count   -- unk "animated bones ?"
 			
 			flagi = 2*StopAtEnd.triState + 4*NoMix.triState + 8*SyncPart.triState + 16*UseFootStep.triState
 			flagi += 32*MoveXForm.triState + 64*idle.triState + 128*UseWeaponBone.triState
@@ -186,7 +186,7 @@ rollout xray_export_skl_rol "export motion (*.skl) ver.11"
 					
 			)
 			
-			--writelong f 0
+			writelong f 0
 			
 			if extype == 1 then
 			(
@@ -223,9 +223,6 @@ rollout xray_export_skl_rol "export motion (*.skl) ver.11"
 			if $ == undefined then messagebox "nothing selected"
 			else
 			(
-				if ExportType.state > 1 and NewAnimationName.text == "" then messagebox "skls mode: animation name requared"
-				else
-				(
 					clearlistener ()
 					parobjs = #()
 					
@@ -241,13 +238,12 @@ rollout xray_export_skl_rol "export motion (*.skl) ver.11"
 					if objs == undefined then format "error 'objs == undefined'\n"
 					else
 					(
-							FilePath = getIniSetting (scriptspath + "xr_scripts_settings.txt") "paths" "editorpath"
 							if ExportType.state == 1 then
-								fname = getsavefilename types:"single animation|*.skl|" filename:(FilePath + "\\import\\")
+								fname = getsavefilename types:"single animation|*.skl|" filename:"C:\\Program Files\\X-Ray CoP SDK\\editors\\import\\"
 							else if ExportType.state == 2 then
-								fname = getsavefilename types:"animations|*.skls|" filename:(FilePath + "\\import\\")
+								fname = getsavefilename types:"animations|*.skls|" filename:"C:\\Program Files\\X-Ray CoP SDK\\editors\\import\\"
 							else if ExportType.state == 3 then
-								fname = getopenfilename types:"animations|*.skls|" filename:(FilePath + "\\import\\")
+								fname = getopenfilename types:"animations|*.skls|" filename:"C:\\Program Files\\X-Ray CoP SDK\\editors\\import\\"
 							else fname == undefined
 							
 							if fname != undefined then 
@@ -264,7 +260,6 @@ rollout xray_export_skl_rol "export motion (*.skl) ver.11"
 								)
 							)
 					)
-				)
 			)
 
 ) -- rol

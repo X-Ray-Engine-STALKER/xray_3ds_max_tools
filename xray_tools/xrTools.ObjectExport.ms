@@ -200,7 +200,7 @@ fn write_single_mesh f sobj ExportSkinMode ExportRigidMode =
 	
 	writelong f 0x1013												-- EMESH_CHUNK_SG
 	writelong f (NumFaces*4)
-	for i = 1 to NumFaces do writelong f (getsg (getFaceSmoothGroup obj i))
+	for i = 1 to NumFaces do writelong f (getFaceSmoothGroup obj i) --(getsg (getFaceSmoothGroup obj i))
 	
 																	-- EMESH_CHUNK_VMREFS
 	writelong f 0x1008

@@ -6,9 +6,7 @@ checkbutton LoadSkinChk "skin" checked:false width:40 tooltip:"load skin" align:
 
 label lbl_0 "scale object" align:#left across:2
 spinner ScaleObject range:[0,100000,1] scale:.001 width:60 align:#right
-	
---checkbox UseStalkerMatChk "use stalker materials" checked:true align:#left across:2
---radiobuttons xrMtlType "use material" labels:#("standard","stalker mtl","scripted") columns:3 default:2 --align:#left
+
 label UseMatText "Use material" align:#left offset:[0,4] across:2
 dropdownlist xrMtlType items:#("standard material","stalker material","standard + shaders")  selection:3 width:140 align:#right
 
@@ -16,6 +14,7 @@ checkbox AttachChk "create single mesh" align:#left
 checkbox LoadShapeChk "load bone collision" align:#left
 checkbox MergeMaterials "use scene material" align:#left
 checkbox PutToLayers "create layers" align:#left
+checkbox LoadMaps "load textures" align:#left checked:true
 
 label Lbl "textures path" align:#left
 edittext TPathTxt width:200 align:#left across:2
@@ -25,18 +24,7 @@ label Lblb "objects path" align:#left
 edittext ObjPathTxt width:200 align:#left across:2 --enabled:false
 button GetObjPathBtn "get" align:#right width:24
 
-/*
-group "skin vertex weights"
-(
-button SkinSaveBtn "Save" across:3 width:60 align:#left
-button SkinLoadBtn "Load" width:60 align:#center
-button SkinMergeBtn "Merge" width:60 align:#right
-)
-*/
-
-
 ------------------------------------------------------------------------------------------------------------
-local TexturePath = "F:\\GAMES\\S.T.A.L.K.E.R. - Call of Pripyat\\gamedata\\textures"
 local LastPath = "C:\\Program Files\\X-Ray CoP SDK\\editors\\"
 
 ------------------------------------------------------------------------------------------------------------
@@ -91,7 +79,9 @@ fn FinalSettings a fname =
 			else a[1][1].name = (getfilenamefile fname)
 			
 			setuserprop a[1][1] "ref_name" ((substring (getfilenamepath fname) (ObjPathTxt.text.count+2) -1) + (getfilenamefile fname))
+			return a[1][1]
 		)
+	return undefined
 )
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -380,7 +370,7 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 		--format "section [id = 0x%, size=%] at 0\t\t| EOBJ_CHUNK_MAIN\n" (bit.intashex sectionId) SectionSize
 		
 		local vmas = #(), fmas = #(), tvmas = #(), tfmas = #(), BugReport = #()
-		local TexPath = TPathTxt.text --TexturePath
+		local TexPath = TPathTxt.text
 		local SectionEndOfs
 		local Result = #() -- [1]: meshes | [2]: materials | [3]: bone array of #(bobj,parent_name) |
 		local TexTabID1, TexTabID2
@@ -534,25 +524,29 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 														)
 													0x1008:
 														(
-																NumVMREFS = readlong f #unsigned --format " EMESH_CHUNK_VMREFS [%]\n" NumVMREFS
-																
-																for i = 1 to NumVMREFS do
+																if LoadMaps.checked then
 																(
-																		Cnt = readbyte f
-																		XTable[i] = #()
-																		for j = 1 to Cnt do 
-																		(
-																			v1 = readlong f #unsigned
-																			v2 = readlong f #unsigned
-																			if v1 > 88 then (v1 = 0 ; v2 = 0)
- 																			XTable[i][j] = #(v1, v2)
-																		)
+																	NumVMREFS = readlong f #unsigned --format " EMESH_CHUNK_VMREFS [%]\n" NumVMREFS
+																	
+																	for i = 1 to NumVMREFS do
+																	(
+																			Cnt = readbyte f
+																			XTable[i] = #()
+																			for j = 1 to Cnt do 
+																			(
+																				v1 = readlong f #unsigned
+																				v2 = readlong f #unsigned
+																				if v1 > 88 then (v1 = 0 ; v2 = 0)
+																				XTable[i][j] = #(v1, v2)
+																			)
+																	)
 																)
-
 																fseek f (SectionSize + StartPos) #seek_set
 														)
 													0x1009:
 														(
+															if LoadMaps.checked then
+															(
 																NumSurfaces = readshort f --; format " EMESH_CHUNK_SFACE [%]\n" NumSurfaces
 																Result[2][MeshIndex+1] = #()
 																
@@ -563,11 +557,14 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 																		SNumFaces = readlong f #unsigned --; format "\tnum faces = %\n" SNumFaces
 																		for j = 1 to SNumFaces do setFaceMatID m ((readlong f #unsigned) + 1) i
 																)
-																
-																fseek f (SectionSize + StartPos) #seek_set
+															)
+															
+															fseek f (SectionSize + StartPos) #seek_set
 														)
 													0x1012:
 														(
+															if LoadMaps.checked then
+															(
 																NumTextureTables = readlong f --; format " EMESH_CHUNK_VMAPS_2 [%]\n" NumTextureTables 
 														
 																VTable = #() -- vert values table
@@ -629,7 +626,8 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 																		meshop.setMapVert m 1 i VTable[j][k]
 																)
 																
-																fseek f (SectionSize + StartPos) #seek_set
+															)																
+															fseek f (SectionSize + StartPos) #seek_set
 														)
 													default:
 														(
@@ -647,6 +645,8 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 
 					0x0907:
 						(
+							if LoadMaps.checked then
+							(
 								NUM_MATERIALS = readlong f --; format "\tNUM_MATERIALS = %\n" NUM_MATERIALS
 								
 								if LoadMesh then
@@ -740,8 +740,8 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 												m.material = CurMat
 										)
 								)
-								
-								fseek f (SectionSize + StartPos) #seek_set
+							)
+							fseek f (SectionSize + StartPos) #seek_set
 						)
 					0x921:
 						(
@@ -902,204 +902,12 @@ on GetObjPathBtn pressed do
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
 on XRay_ImportModel_rol open do
 (
-		fname = scriptspath + "xr_scripts_settings.txt"
-		TPathTxt.text = getIniSetting fname "paths" "last_textures_path"
-		ObjPathTxt.text = getIniSetting fname "paths" "last_objects_path"
-		LoadShapeChk.enabled = ( XRayCollision != undefined)
+	fname = scriptspath + "xr_scripts_settings.txt"
+	TPathTxt.text = getIniSetting fname "paths" "last_textures_path"
+	ObjPathTxt.text = getIniSetting fname "paths" "last_objects_path"
+	LastPath = ObjPathTxt.text
+	LoadShapeChk.enabled = ( XRayCollision != undefined)
 )
-
-
--------------------------------------------------------------------------------------------------------------------------------------------------------------------
-/*
-on SkinSaveBtn pressed do
-	if $ == undefined then messagebox "nothing selected.\nselect skined object"
-	else
-		if selection.count != 1 then messagebox "more than 1 object selected\nselect just skined object"
-		else
-		(
-			obj = selection[1]
-			select obj
-			max modify mode
-			smod = obj.modifiers[1]
-			
-			if classof smod == skin then
-			(
-			
-				fname = getsavefilename types:"skin wieght data file|*.swd|"
-				if fname != undefined then
-				(
-					f = fopen fname "wb"
-					if f == undefined then messagebox "cant open file"
-					else
-					(
-						clearlistener ()
-						writestring f "skin wieght data file"
-						
-						N = skinOps.GetNumberBones smod
-						writelong f N
-						for i = 1 to N do writestring f (skinOps.GetBoneName smod i 1)
-						
-						N = skinOps.GetNumberVertices smod
-						writelong f N
-						for i = 1 to N do 
-						(
-							Nb = skinOps.GetVertexWeightCount smod i
-							writelong f Nb
-							for j = 1 to Nb do writelong f (skinOps.GetVertexWeightBoneID smod i j)
-							for j = 1 to Nb do writefloat f (skinOps.GetVertexWeight smod i j)
-						)
-						
-						fclose f
-					)
-				)
-			)
-			else messagebox "no skin modifier founded\nselect skined object"
-		)
-
-
------------------------------------------------------------------------------------------------ LOAD VERTEX WEIGHTS DATA
-on SkinLoadBtn pressed do
-	if $ == undefined then messagebox "nothing selected.\nselect skined object"
-	else
-		if selection.count != 1 then messagebox "more than 1 object selected\nselect just skined object"
-		else
-		(
-			obj = selection[1]
-			select obj
-			max modify mode
-			smod = obj.modifiers[1]
-			
-			if classof smod == skin then
-			(
-			
-				fname = getopenfilename types:"skin wieght data file|*.swd|"
-				if fname != undefined then
-				(
-					f = fopen fname "rb"
-					if f == undefined then messagebox "cant open file"
-					else
-					(
-						if (readstring f) != "skin wieght data file" then messagebox "wrong file format"
-						else
-						(
-							clearlistener ()
-							BCnt = readlong f
-							SBones = for i = 1 to BCnt collect (readstring f)
-							VCnt = readlong f
-							Nb = skinOps.GetNumberBones smod
-							TBones = for i = 1 to Nb collect (skinOps.GetBoneName smod i 1)
-							Nv = skinOps.GetNumberVertices smod
-							
-							--format "skin bone count = %\nfile bone count = %\n" Nb BCnt
-							--format "skin vert count = %\nfile vert count = %\n" Nv VCnt
-							
-							Sig = #()
-							
-							for i = 1 to BCnt do
-							(
-								n = findItem TBones SBones[i]
-								Sig[i] = n
-							)
-							
-							for i = 1 to Nv do
-							(
-								if i > VCnt then exit
-								cnt = readlong f
-								ba = for j = 1 to cnt collect Sig[readlong f]
-								wa = for j = 1 to cnt collect (readfloat f)
-								skinOps.setVertexWeights smod i ba wa
-								skinOps.ReplaceVertexWeights smod i ba wa
-							)
-						)
-						
-						fclose f
-					)
-				)
-			)
-			else messagebox "no skin modifier founded\nselect skined object"
-		)
-
------------------------------------------------------------------------------------------------ MERGE
-on SkinMergeBtn pressed do
-(
-	fname1 = getopenfilename types:"skin wieght data file|*.swd|" caption:"step 1: select base file"
-	if fname1 != undefined then
-	(
-		fname2 = getopenfilename types:"skin wieght data file|*.swd|" caption:"step 2: select merged file"
-		if fname2 != undefined then
-		(
-			fname0 = getsavefilename types:"skin wieght data file|*.swd|" caption:"step 3: select file to save"
-			if fname0 != undefined then
-			(
-				f1 = fopen fname1 "rb"
-				f2 = fopen fname2 "rb"
-				if f1 == undefined or f2 == undefined then messagebox "cant open file"
-				else
-				(
-					if ((readstring f1) != "skin wieght data file") or ((readstring f2) != "skin wieght data file") then messagebox "wrong file format"
-					else
-					(
-						n = readlong f1 ; format "Base file bone count = %\n" n
-						SBones = for i = 1 to n collect (readstring f1)
-						n = readlong f2 ; format "Merged file bone count = %\n" n
-						TSig = #()
-						HaveError = false
-						
-						for i = 1 to n do
-						(
-							TBone = readstring f2
-							j = findItem SBones TBone
-							if j == 0 then 
-							(
-								append SBones TBone
-								TSig[i] = SBones.count
-								format "### warning !!! bone % not founded in base file\n" TBone
-							)
-							else TSig[i] = j
-						)
-						
-						--------- write file
-						fo = fopen fname0 "wb"
-						if fo == undefined then messagebox "cant create file"
-						else
-						(
-							writestring fo "skin wieght data file"
-							format "final bone count = %\n" SBones.count
-							writelong fo SBones.count
-							for i in SBones do writestring fo i
-							
-							SVCnt = readlong f1
-							TVCnt = readlong f2
-							writelong fo (SVCnt + TVCnt)
-							format "final vertex count = %\n" (SVCnt + TVCnt)
-							
-							for i = 1 to SVCnt do
-							(
-								writelong fo (cnt = readlong f1)
-								for j = 1 to cnt do writelong fo (readlong f1)
-								for j = 1 to cnt do writefloat fo (readfloat f1)
-							)
-							
-							for i = 1 to TVCnt do
-							(
-								writelong fo (cnt = readlong f2)
-								for j = 1 to cnt do writelong fo TSig[readlong f2]
-								for j = 1 to cnt do writefloat fo (readfloat f2)
-							)
-							
-							fclose fo
-						)
-					)
-				)
-				
-				fclose f1
-				fclose f2
-			) -- fname0
-		)
-	)
-)
-*/
-
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
 on LoadModelBtn pressed do
 (

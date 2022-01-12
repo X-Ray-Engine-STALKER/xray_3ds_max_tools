@@ -17,7 +17,7 @@ button ResetPoseBtn "Reset pose"
 
 
 struct s_anim_name ( name, index )
-local AnimFileName = undefined, Animas = #(), LastAnimPath = "C:\\Program Files\\X-Ray CoP SDK\\editors\\"
+local AnimFileName = undefined, Animas = #(), LastAnimPath = undefined
 local flagNames = #("type fx","stop at end","no mix","sync part","use foot step","move xform","idle","use weapon bone")
 
 fn FNSortAnim v1 v2 =
@@ -145,26 +145,16 @@ fn load_single_skl f start_t =
 					
 						for k in ctime.keys do
 						(
-								t = k.time
-								px = at time t (ScaleFactor.value * ctr[1].value)
-								pz = at time t (ScaleFactor.value * ctr[2].value)
-								py = at time t  (ScaleFactor.value * ctr[3].value)
-								rx = radtodeg (at time t ctr[4].value)
-								rz = radtodeg (at time t ctr[5].value)
-								ry = radtodeg (at time t ctr[6].value)
-		
-								--tm2 = ( (eulertoquat (eulerangles -(radtodeg ry) -(radtodeg rx) -(radtodeg rz)) order:4) as matrix3 )
-								--tm2.row4 = [px,py,pz]
-								
-								animate on at time t bo.rotation.controller.value = eulertoquat (eulerangles -ry -rz -rx) order:4
-								animate on at time t bo.position.controller.value = [px,py,pz]
-								
-								--ptm = if bo.parent == undefined then (matrix3 1) else (at time t bo.parent.transform)
-								--tm2 *= ptm
-								
-								--animate on at time t bo.transform = inverse tm2
-								
-								--format "\t\t%: [%,%,%] \n" t px py pz
+							t = k.time
+							px = at time t (ScaleFactor.value * ctr[1].value)
+							pz = at time t (ScaleFactor.value * ctr[2].value)
+							py = at time t  (ScaleFactor.value * ctr[3].value)
+							rx = radtodeg (at time t ctr[4].value)
+							rz = radtodeg (at time t ctr[5].value)
+							ry = radtodeg (at time t ctr[6].value)
+							
+							animate on at time t bo.rotation.controller.value = eulertoquat (eulerangles -ry -rz -rx) order:4
+							animate on at time t bo.position.controller.value = [px,py,pz]
 						)
 						
 						deletekeys bo.scale.controller.keys #allkeys
@@ -219,6 +209,7 @@ on ResetPoseBtn pressed do
 --------------------------------------------------------------------------------------------------------
 on CreateList pressed do
 (
+		if LastAnimPath == undefined then LastAnimPath = (getIniSetting (scriptspath + "xr_scripts_settings.txt") "paths" "editorpath") + "\\"
 		fname = getopenfilename types:"anims|*.skls|anim|*.skl|" filename:LastAnimPath
 		
 		clearlistener ()

@@ -49,7 +49,7 @@ fn ReadBoneData f =
 	local res = #(), cnt
 	res[1] = ftell f
 	
-	--format "------------------------------------------------- bone settings data\n"
+	format "------------------------------------------------- bone settings data\n"
 	sectionId = readlong f ; SectionSize = readlong f #unsigned
 	if sectionId != 0xF then (format "not supported format 0xF\n" ; return undefined)
 	
@@ -58,7 +58,7 @@ fn ReadBoneData f =
 	
 	for i = 1 to Num2 do
 	(
-			str1 = readstring f --; format "bone set % = %\n" i str1
+			str1 = readstring f ; format "bone set % = %\n" i str1
 			cnt = readshort f
 			
 			for j = 1 to cnt do
@@ -67,7 +67,7 @@ fn ReadBoneData f =
 					if str == "" then b = readbyte f
 					else b = readshort f
 					bone_index = readshort f
-					--format "\t%, %\n" str b
+					format "\t%, %\n" str b
 			)
 	)
 	
