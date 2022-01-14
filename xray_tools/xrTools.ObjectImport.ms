@@ -1108,6 +1108,11 @@ fn load_object f fname filesize LoadMesh LoadSkin =
 				)
 		
 		--gc()
+
+		if not LoadSkin then
+			convertTo result[1][1] editable_poly
+		end
+
 		return Result
 		
 ) -- fn

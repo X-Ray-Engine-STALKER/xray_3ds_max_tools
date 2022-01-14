@@ -6,6 +6,12 @@
 
 Опубликовал: Scarabay
 
-## Описание ветки scarabay
+Соавторы: SkyLoader
+
+## Описание ветки skyloader
 
 В этой ветке находится код скриптов от Den Stash'а, которые опубликовал Scarabay.
+
+Изменения:
+
+ - от SkyLoader см. в Readme.txt

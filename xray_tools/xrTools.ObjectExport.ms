@@ -444,7 +444,6 @@ fn write_single_mesh f sobj ExportSkinMode ExportRigidMode =
 		)
 	)
 	
-	
 	tempSizeOfs2 = ftell f
 	fseek f tempSizeOfs1 #seek_set
 	writelong f (tempSizeOfs2 - tempSizeOfs1 - 4)
@@ -804,7 +803,6 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 			writelong f 6
 			writelong f 60
 			writelong f 0 -- joint_type
-			
 			for k = 1 to 3 do
 			(
 				writefloat f 0 -- axis min
@@ -841,7 +839,7 @@ fn export_object f sobj ExportSkinMode ExportRigidMode =
 		writelong f (curOfs - ChangeOffset_bones - 4)
 		fseek f curOfs #seek_set
 		
-		
+
 		if true then
 		(
 			TabNames = for i = 1 to NumBones collect xrToolsUtil.renameBone (skinOps.GetBoneName SkinMod i 0)
